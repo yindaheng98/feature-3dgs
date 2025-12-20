@@ -7,7 +7,7 @@ from tqdm import tqdm
 from argparse import Namespace
 from gaussian_model import FeaturedGaussian
 from trainer.base import FeatureTrainer
-from prepare import shutil, shliftmodes, prepare_dataset, prepare_gaussians, prepare_trainer
+from prepare import basemodes, shliftmodes, prepare_dataset, prepare_gaussians, prepare_trainer
 from gaussian_splatting.dataset import CameraDataset
 from gaussian_splatting.utils import psnr
 
