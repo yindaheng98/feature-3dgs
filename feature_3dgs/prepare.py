@@ -5,18 +5,18 @@ from typing import List, Tuple
 import torch
 from tqdm import tqdm
 from argparse import Namespace
-from gaussian_model import FeaturedGaussian
-from trainer.base import FeatureTrainer
-from prepare import shutil, shliftmodes, prepare_dataset, prepare_gaussians, prepare_trainer
+from gaussian_splatting import GaussianModel
 from gaussian_splatting.dataset import CameraDataset
 from gaussian_splatting.utils import psnr
+from gaussian_splatting.trainer import AbstractTrainer
+from gaussian_splatting.prepare import basemodes, shliftmodes, prepare_dataset, prepare_gaussians, prepare_trainer
 
 # TODO
 def prepare_training(
         sh_degree: int, source: str, device: str, mode: str,
         trainable_camera: bool = False, load_ply: str = None, load_camera: str = None,
         load_mask=True, load_depth=True,
-        with_scale_reg=False, configs={}) -> Tuple[CameraDataset, FeaturedGaussian, FeatureTrainer]:
+        with_scale_reg=False, configs={}) -> Tuple[CameraDataset, GaussianModel, AbstractTrainer]:
     dataset = prepare_dataset(source=source, device=device, trainable_camera=trainable_camera, load_camera=load_camera, load_mask=load_mask, load_depth=load_depth)
     gaussians = prepare_gaussians(sh_degree=sh_degree, source=source, device=device, trainable_camera=trainable_camera, load_ply=load_ply)
     trainer = prepare_trainer(gaussians=gaussians, dataset=dataset, mode=mode, trainable_camera=trainable_camera, load_ply=load_ply, with_scale_reg=with_scale_reg, configs=configs)
@@ -31,7 +31,7 @@ def save_cfg_args(destination: str, sh_degree: int, source: str):
 
 
 # TODO
-def training(dataset: CameraDataset, gaussians: FeaturedGaussian, trainer: FeatureTrainer, destination: str, iteration: int, save_iterations: List[int], device: str, empty_cache_every_step=False):
+def training(dataset: CameraDataset, gaussians: GaussianModel, trainer: AbstractTrainer, destination: str, iteration: int, save_iterations: List[int], device: str, empty_cache_every_step=False):
     shutil.rmtree(os.path.join(destination, "point_cloud"), ignore_errors=True)  # remove the previous point cloud
     pbar = tqdm(range(1, iteration+1), dynamic_ncols=True, desc="Training")
     epoch = list(range(len(dataset)))
