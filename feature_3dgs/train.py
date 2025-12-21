@@ -5,22 +5,21 @@ from typing import List, Tuple
 import torch
 from tqdm import tqdm
 from argparse import Namespace
+from gaussian_splatting.utils import psnr
 from gaussian_model import FeatureGaussian
 from trainer.base import FeatureTrainer
-from prepare import basemodes, shliftmodes, prepare_dataset, prepare_gaussians, prepare_trainer
-from gaussian_splatting.dataset import CameraDataset
-from gaussian_splatting.utils import psnr
+from dataset.dataset import FeatureDataset
+from prepare import basemodes, shliftmodes, prepare_feature_dataset, prepare_feature_gaussians, prepare_feature_trainer 
 
-# TODO
 def prepare_training(
         sh_degree: int, source: str, device: str, mode: str,
         trainable_camera: bool = False, load_ply: str = None, load_camera: str = None,
         load_mask=True, load_depth=True,
         with_scale_reg=False, configs={}
-) -> Tuple[CameraDataset, FeatureGaussian, FeatureTrainer]:
-    dataset = prepare_dataset(source=source, device=device, trainable_camera=trainable_camera, load_camera=load_camera, load_mask=load_mask, load_depth=load_depth)
-    gaussians = prepare_gaussians(sh_degree=sh_degree, source=source, device=device, trainable_camera=trainable_camera, load_ply=load_ply)
-    trainer = prepare_trainer(gaussians=gaussians, dataset=dataset, mode=mode, trainable_camera=trainable_camera, load_ply=load_ply, with_scale_reg=with_scale_reg, configs=configs)
+) -> Tuple[FeatureDataset, FeatureGaussian, FeatureTrainer]:
+    dataset = prepare_feature_dataset(source=source, device=device, trainable_camera=trainable_camera, load_camera=load_camera, load_mask=load_mask, load_depth=load_depth)
+    gaussians = prepare_feature_gaussians(sh_degree=sh_degree, source=source, device=device, trainable_camera=trainable_camera, load_ply=load_ply)
+    trainer = prepare_feature_trainer(gaussians=gaussians, dataset=dataset, mode=mode, trainable_camera=trainable_camera, load_ply=load_ply, with_scale_reg=with_scale_reg, configs=configs)
     return dataset, gaussians, trainer
 
 
@@ -30,9 +29,9 @@ def save_cfg_args(destination: str, sh_degree: int, source: str):
     with open(os.path.join(destination, "cfg_args"), 'w') as cfg_log_f:
         cfg_log_f.write(str(Namespace(sh_degree=sh_degree, source_path=source)))
 
-# TODO
+# TODO check featuregs training function, most changes should probably be done in the trainer though
 def training(
-        dataset: CameraDataset,
+        dataset: FeatureDataset,
         gaussians: FeatureGaussian,
         trainer: FeatureTrainer,
         destination: str,

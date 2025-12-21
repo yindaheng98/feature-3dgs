@@ -5,13 +5,11 @@ from typing import List, Tuple
 import torch
 from tqdm import tqdm
 from argparse import Namespace
+from gaussian_splatting.prepare import basemodes, shliftmodes, colmap_init
+from gaussian_splatting.trainer.extensions import ScaleRegularizeTrainerWrapper
 from gaussian_model import FeatureGaussian
 from trainer.base import FeatureTrainer
-from gaussian_splatting.dataset import CameraDataset
-from gaussian_splatting.utils import psnr
-from gaussian_splatting.trainer import AbstractTrainer
-from gaussian_splatting.prepare import basemodes, shliftmodes, prepare_dataset,colmap_init
-from gaussian_splatting.trainer.extensions import ScaleRegularizeTrainerWrapper
+from dataset.dataset import FeatureDataset
 
 def prepare_feature_gaussians(
         sh_degree: int,
@@ -25,9 +23,10 @@ def prepare_feature_gaussians(
     gaussians.load_ply(load_ply) if load_ply else colmap_init(gaussians, source)
     return gaussians
 
+# TODO
 def prepare_feature_trainer(
         gaussians: FeatureGaussian,
-        dataset: CameraDataset,
+        dataset: FeatureDataset,
         mode: str,
         trainable_camera: bool = False,
         load_ply: str = None,
@@ -54,112 +53,13 @@ def prepare_feature_trainer(
         )
     return trainer
 
-# TODO
-def prepare_feature_training(
-        sh_degree: int, source: str, device: str, mode: str,
-        trainable_camera: bool = False, load_ply: str = None, load_camera: str = None,
-        load_mask=True, load_depth=True,
-        with_scale_reg=False, configs={}) -> Tuple[CameraDataset, FeatureGaussian, AbstractTrainer]:
-    dataset = prepare_dataset(source=source, device=device, trainable_camera=trainable_camera, load_camera=load_camera, load_mask=load_mask, load_depth=load_depth)
-    gaussians = prepare_feature_gaussians(sh_degree=sh_degree, source=source, device=device, load_ply=load_ply)
-    trainer = prepare_feature_trainer(gaussians=gaussians, dataset=dataset, mode=mode, trainable_camera=trainable_camera, load_ply=load_ply, with_scale_reg=with_scale_reg, configs=configs)
-    return dataset, gaussians, trainer
-
-
-# TODO
-def save_cfg_args(destination: str, sh_degree: int, source: str):
-    os.makedirs(destination, exist_ok=True)
-    with open(os.path.join(destination, "cfg_args"), 'w') as cfg_log_f:
-        cfg_log_f.write(str(Namespace(sh_degree=sh_degree, source_path=source)))
-
-
-# TODO
-def training(
-        dataset: CameraDataset,
-        gaussians: FeatureGaussian,
-        trainer: FeatureTrainer,
-        destination: str,
-        iteration: int,
-        save_iterations: List[int],
+# TODO:
+def prepare_feature_dataset(
+        source: str,
         device: str,
-        empty_cache_every_step=False
-):
-    shutil.rmtree(os.path.join(destination, "point_cloud"), ignore_errors=True)  # remove the previous point cloud
-    pbar = tqdm(range(1, iteration + 1), dynamic_ncols=True, desc="Training")
-    epoch = list(range(len(dataset)))
-    epoch_psnr = torch.empty(3, 0, device=device)
-    epoch_maskpsnr = torch.empty(3, 0, device=device)
-    ema_loss_for_log = 0.0
-    avg_psnr_for_log = 0.0
-    avg_maskpsnr_for_log = 0.0
-    for step in pbar:
-        epoch_idx = step % len(dataset)
-        if epoch_idx == 0:
-            avg_psnr_for_log = epoch_psnr.mean().item()
-            avg_maskpsnr_for_log = epoch_maskpsnr.mean().item()
-            epoch_psnr = torch.empty(3, 0, device=device)
-            epoch_maskpsnr = torch.empty(3, 0, device=device)
-            random.shuffle(epoch)
-        idx = epoch[epoch_idx]
-        loss, out = trainer.step(dataset[idx])
-        if empty_cache_every_step:
-            torch.cuda.empty_cache()
-        with torch.no_grad():
-            ground_truth_image = dataset[idx].ground_truth_image
-            rendered_image = out["render"]
-            epoch_psnr = torch.concat([epoch_psnr, psnr(rendered_image, ground_truth_image)], dim=1)
-            if dataset[idx].ground_truth_image_mask is not None:
-                ground_truth_maskimage = ground_truth_image * dataset[idx].ground_truth_image_mask
-                rendered_maskimage = rendered_image * dataset[idx].ground_truth_image_mask
-                epoch_maskpsnr = torch.concat([epoch_maskpsnr, psnr(rendered_maskimage, ground_truth_maskimage)], dim=1)
-            ema_loss_for_log = 0.4 * loss.item() + 0.6 * ema_loss_for_log
-            if step % 10 == 0:
-                postfix = {'epoch': step // len(dataset), 'loss': ema_loss_for_log, 'psnr': avg_psnr_for_log, 'masked psnr': avg_maskpsnr_for_log, 'n': gaussians._xyz.shape[0]}
-                if avg_maskpsnr_for_log <= 0:
-                    del postfix['masked psnr']
-                pbar.set_postfix(postfix)
-        if step in save_iterations:
-            save_path = os.path.join(destination, "point_cloud", "iteration_" + str(step))
-            os.makedirs(save_path, exist_ok=True)
-            gaussians.save_ply(os.path.join(save_path, "point_cloud.ply"))
-            dataset.save_cameras(os.path.join(destination, "cameras.json"))
-    save_path = os.path.join(destination, "point_cloud", "iteration_" + str(iteration))
-    os.makedirs(save_path, exist_ok=True)
-    gaussians.save_ply(os.path.join(save_path, "point_cloud.ply"))
-    dataset.save_cameras(os.path.join(destination, "cameras.json"))
-
-
-# TODO
-if __name__ == "__main__":
-    from argparse import ArgumentParser, Namespace
-    parser = ArgumentParser()
-    parser.add_argument("--sh_degree", default=3, type=int)
-    parser.add_argument("-s", "--source", required=True, type=str)
-    parser.add_argument("-d", "--destination", required=True, type=str)
-    parser.add_argument("-i", "--iteration", default=30000, type=int)
-    parser.add_argument("-l", "--load_ply", default=None, type=str)
-    parser.add_argument("--load_camera", default=None, type=str)
-    parser.add_argument("--no_image_mask", action="store_true")
-    parser.add_argument("--no_depth_data", action="store_true")
-    parser.add_argument("--with_scale_reg", action="store_true")
-    parser.add_argument("--mode", choices=sorted(list(set(list(basemodes.keys()) + list(shliftmodes.keys())))), default="base")
-    parser.add_argument("--save_iterations", nargs="+", type=int, default=[7000, 30000])
-    parser.add_argument("--device", default="cuda", type=str)
-    parser.add_argument("--empty_cache_every_step", action='store_true')
-    parser.add_argument("-o", "--option", default=[], action='append', type=str)
-    args = parser.parse_args()
-    save_cfg_args(args.destination, args.sh_degree, args.source)
-    torch.autograd.set_detect_anomaly(False)
-
-    configs = {o.split("=", 1)[0]: eval(o.split("=", 1)[1]) for o in args.option}
-    dataset, gaussians, trainer = prepare_training(
-        sh_degree=args.sh_degree, source=args.source, device=args.device, mode=args.mode, trainable_camera="camera" in args.mode,
-        load_ply=args.load_ply, load_camera=args.load_camera,
-        load_mask=not args.no_image_mask, load_depth=not args.no_depth_data,
-        with_scale_reg=args.with_scale_reg, configs=configs)
-    dataset.save_cameras(os.path.join(args.destination, "cameras.json"))
-    torch.cuda.empty_cache()
-    training(
-        dataset=dataset, gaussians=gaussians, trainer=trainer,
-        destination=args.destination, iteration=args.iteration, save_iterations=args.save_iterations,
-        device=args.device, empty_cache_every_step=args.empty_cache_every_step)
+        trainable_camera: bool = False,
+        load_camera: str = None,
+        load_mask=True,
+        load_depth=True
+) -> FeatureDataset:
+    pass

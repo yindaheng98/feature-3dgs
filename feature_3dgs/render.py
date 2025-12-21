@@ -6,15 +6,26 @@ import torch, torchvision
 from gaussian_model import FeatureGaussian
 from gaussian_splatting.dataset import CameraDataset
 from gaussian_splatting.utils import psnr, ssim, unproject
-from prepare import prepare_dataset, prepare_gaussians
+from gaussian_splatting.utils.lpipsPyTorch import lpips
+from gaussian_splatting.prepare import prepare_dataset
+from prepare import prepare_feature_gaussians
 
 # TODO
 def prepare_rendering(
         sh_degree: int, source: str, device: str,
         trainable_camera: bool = False, load_ply: str = None, load_camera: str = None,
         load_mask=True, load_depth=True) -> Tuple[CameraDataset, FeatureGaussian]:
-    dataset = prepare_dataset(source=source, device=device, trainable_camera=trainable_camera, load_camera=load_camera, load_mask=load_mask, load_depth=load_depth)
-    gaussians = prepare_gaussians(sh_degree=sh_degree, source=source, device=device, trainable_camera=trainable_camera, load_ply=load_ply)
+    dataset = prepare_dataset(source=source,
+                              device=device,
+                              trainable_camera=trainable_camera,
+                              load_camera=load_camera,
+                              load_mask=load_mask,
+                              load_depth=load_depth)
+    gaussians = prepare_feature_gaussians(sh_degree=sh_degree,
+                                          source=source,
+                                          device=device,
+                                          trainable_camera=trainable_camera,
+                                          load_ply=load_ply)
     return dataset, gaussians
 
 # TODO
@@ -33,7 +44,8 @@ def build_pcd_rescale(
         color: torch.Tensor, color_gt: torch.Tensor,
         invdepth: torch.Tensor, invdepth_gt: torch.Tensor, mask: torch.Tensor,
         FoVx, FoVy,
-        rescale_depth_gt=True) -> torch.Tensor:
+        rescale_depth_gt=True
+) -> torch.Tensor:
     invdepth_gt_rescale = invdepth_gt
     mask = (mask > 1e-6)
     if rescale_depth_gt:
