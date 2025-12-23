@@ -1,11 +1,13 @@
+import torch
 from gaussian_splatting import Camera
 from gaussian_splatting.utils import l1_loss
 from gaussian_splatting.trainer import TrainerWrapper, AbstractTrainer
+from feature_3dgs.extractor import AbstractFeatureExtractor
 class FeatureTrainer(TrainerWrapper):
-    def __init__(self,base_trainer:AbstractTrainer, decoder:nn.Module):
+    def __init__(self,base_trainer: AbstractTrainer, extractor: AbstractFeatureExtractor):
         super().__init__(base_trainer=base_trainer)
-        self.optimizer.add_param_group([{"lr":0.0001, "params":decoder.parameters()}])
-        self.decoder = decoder
+        self.optimizer.add_param_group([{"lr":0.0001, "params":extractor.parameters()}])
+        self.decoder = extractor 
 
 
     def loss(self, out: dict, camera: Camera) -> torch.Tensor:

@@ -5,6 +5,7 @@ import tifffile
 import torch, torchvision
 from gaussian_splatting.utils import psnr, ssim, unproject
 from gaussian_splatting.utils.lpipsPyTorch import lpips
+from gaussian_splatting.dataset import CameraDataset
 from feature_3dgs.prepare import prepare_feature_dataset, prepare_feature_gaussians
 from feature_3dgs import FeatureGaussian
 
@@ -18,7 +19,7 @@ def prepare_rendering(
         load_camera: str = None,
         load_mask=True,
         load_depth=True
-) -> Tuple[FeatureDataset, FeatureGaussian]:
+) -> Tuple[CameraDataset, FeatureGaussian]:
     dataset = prepare_feature_dataset(
                 source=source,
                 device=device,
@@ -66,7 +67,7 @@ def build_pcd_rescale(
 
 # TODO check gaussian_splatting.render.py
 def rendering(
-        dataset: FeatureDataset,
+        dataset: CameraDataset,
         gaussians: FeatureGaussian,
         save: str,
         save_pcd: bool = False,

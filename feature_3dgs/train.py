@@ -7,19 +7,20 @@ from tqdm import tqdm
 from argparse import Namespace
 from gaussian_splatting.train import training
 from gaussian_splatting.utils import psnr
+from gaussian_splatting.dataset import CameraDataset
 from feature_3dgs import FeatureGaussian
 from feature_3dgs.trainer import FeatureTrainer
-from feature_3dgs.prepare import basemodes, shliftmodes, prepare_feature_dataset, prepare_feature_gaussians, prepare_feature_trainer 
+from feature_3dgs.prepare import basemodes, shliftmodes, prepare_feature_dataset, prepare_feature_gaussians, prepare_feature_trainer, prepare_feature_extractor
 
 def prepare_training(
         sh_degree: int, source: str, device: str, mode: str,
         trainable_camera: bool = False, load_ply: str = None, load_camera: str = None,
         load_mask=True, load_depth=True,
         with_scale_reg=False, configs={}
-) -> Tuple[FeatureDataset, FeatureGaussian, FeatureTrainer]:
+) -> Tuple[CameraDataset, FeatureGaussian, FeatureTrainer]:
     dataset = prepare_feature_dataset(source=source, device=device, trainable_camera=trainable_camera, load_camera=load_camera, load_mask=load_mask, load_depth=load_depth)
     gaussians = prepare_feature_gaussians(sh_degree=sh_degree, source=source, device=device, trainable_camera=trainable_camera, load_ply=load_ply)
-    decoder = prepare_feature_decoder()
+    decoder = prepare_feature_extractor()
     trainer = prepare_feature_trainer(gaussians=gaussians, decoder=decoder, dataset=dataset, mode=mode, trainable_camera=trainable_camera, load_ply=load_ply, with_scale_reg=with_scale_reg, configs=configs)
     return dataset, gaussians, trainer
 

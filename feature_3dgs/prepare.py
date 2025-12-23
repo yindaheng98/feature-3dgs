@@ -25,3 +25,7 @@ def prepare_feature_trainer(
     trainer = prepare_trainer(gaussians=gaussians, *args, **kwargs)
     feature_trainer = FeatureTrainer(base_trainer=trainer, decoder=decoder)
     return feature_trainer
+
+# TODO
+def prepare_feature_extractor():
+    pass
