@@ -6,7 +6,11 @@ from feature_3dgs.extractor import AbstractFeatureExtractor
 from feature_3dgs import FeatureGaussian
 
 class FeatureTrainer(TrainerWrapper):
-    def __init__(self, base_trainer: AbstractTrainer, extractor: AbstractFeatureExtractor):
+    def __init__(
+        self,
+        base_trainer: AbstractTrainer,
+        extractor: AbstractFeatureExtractor
+    ):
         super().__init__(base_trainer=base_trainer)
         self.optimizer.add_param_group([{"lr":0.0001, "params":extractor.parameters()}])
         self.extractor = extractor
@@ -17,8 +21,8 @@ class FeatureTrainer(TrainerWrapper):
     def loss(self, out: dict, camera: Camera) -> torch.Tensor:
         loss = self.base_trainer.loss(out, camera)
         feature_map_3dgs = out['feature_map']
-        feature_map_decoder = self.decoder(camera.ground_truth_image)
-        feature_map_loss = l1_loss(feature_map_3dgs, feature_map_decoder) 
+        feature_map_extractor = self.extractor(camera.ground_truth_image)
+        feature_map_loss = l1_loss(feature_map_3dgs, feature_map_extractor) 
         return loss + feature_map_loss
 
     def update_learning_rate(self):
@@ -34,3 +38,6 @@ class FeatureTrainer(TrainerWrapper):
         self.optim_step()
         self.after_optim_hook(loss=loss, out=out, camera=camera)
         return loss, out
+
+    def extract_features(self, input):
+        return self.extractor.extract(input)

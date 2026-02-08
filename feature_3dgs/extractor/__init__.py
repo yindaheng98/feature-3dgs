@@ -1,2 +1,2 @@
 from .abc import AbstractFeatureExtractor
-from .mlp_extractor import MLPExtractor
+from .yolo_extractor import YOLOExtractor

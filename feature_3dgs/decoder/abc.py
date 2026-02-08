@@ -10,3 +10,6 @@ class AbstractDecoder(ABC):
     @abstractmethod
     def __call__(self, feature_map: torch.Tensor) -> torch.Tensor:
         pass
+
+    def save(self, save_path: str):
+        pass

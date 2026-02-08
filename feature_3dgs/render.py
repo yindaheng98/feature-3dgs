@@ -3,13 +3,18 @@ from typing import Tuple
 from tqdm import tqdm
 import tifffile
 import torch, torchvision
+import torch.nn.functional as F
+import numpy as np
+from matplotlib import pyplot as plt
+from PIL import Image
 from gaussian_splatting.utils import psnr, ssim, unproject
 from gaussian_splatting.utils.lpipsPyTorch import lpips
 from gaussian_splatting.dataset import CameraDataset
 from feature_3dgs.prepare import prepare_feature_dataset, prepare_feature_gaussians
 from feature_3dgs import FeatureGaussian
+from feature_3dgs.decoder import AbstractDecoder
 
-# TODO
+# TODO: add decoder
 def prepare_rendering(
         sh_degree: int,
         source: str,
@@ -37,7 +42,6 @@ def prepare_rendering(
                 )
     return dataset, gaussians
 
-# TODO
 def build_pcd(color: torch.Tensor, invdepth: torch.Tensor, mask: torch.Tensor, FoVx, FoVy) -> torch.Tensor:
     assert color.shape[-2:] == invdepth.shape[-2:], ValueError("Size of depth map should match color image")
     xyz = unproject(1 / invdepth, FoVx, FoVy)
@@ -65,52 +69,45 @@ def build_pcd_rescale(
     pcd_gt = build_pcd(color_gt, invdepth_gt_rescale, mask, FoVx, FoVy)
     return pcd, pcd_gt, invdepth_gt_rescale
 
-# TODO check gaussian_splatting.render.py
-def rendering(
-        dataset: CameraDataset,
-        gaussians: FeatureGaussian,
-        save: str,
-        save_pcd: bool = False,
-        rescale_depth_gt: bool = True
-) -> None:
-    os.makedirs(save, exist_ok=True)
-    dataset.save_cameras(os.path.join(save, "cameras.json"))
-    render_path = os.path.join(save, "renders")
-    gt_path = os.path.join(save, "gt")
-    os.makedirs(render_path, exist_ok=True)
-    os.makedirs(gt_path, exist_ok=True)
-    pbar = tqdm(dataset, dynamic_ncols=True, desc="Rendering")
-    with open(os.path.join(save, "quality.csv"), "w") as f:
-        f.write("name,psnr,ssim,lpips\n")
-    for idx, camera in enumerate(pbar):
-        out = gaussians(camera)
-        rendering = out["render"]
-        gt = camera.ground_truth_image
-        if camera.ground_truth_image_mask is not None:
-            gt *= camera.ground_truth_image_mask
-            rendering *= camera.ground_truth_image_mask
-        psnr_value = psnr(rendering, gt).mean().item()
-        ssim_value = ssim(rendering, gt).mean().item()
-        lpips_value = lpips(rendering, gt).mean().item()
-        pbar.set_postfix({"PSNR": psnr_value, "SSIM": ssim_value, "LPIPS": lpips_value})
-        with open(os.path.join(save, "quality.csv"), "a") as f:
-            f.write('{0:05d}'.format(idx) + f",{psnr_value},{ssim_value},{lpips_value}\n")
-        torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(idx) + ".png"))
-        torchvision.utils.save_image(gt, os.path.join(gt_path, '{0:05d}'.format(idx) + ".png"))
-        depth = out["depth"].squeeze(0)
-        tifffile.imwrite(os.path.join(render_path, '{0:05d}'.format(idx) + "_depth.tiff"), depth.cpu().numpy())
-        if save_pcd:
-            import open3d as o3d
-            if camera.ground_truth_depth is not None:
-                mask = camera.ground_truth_depth_mask if camera.ground_truth_depth_mask is not None else torch.ones_like(camera.ground_truth_depth)
-                pcd, pcd_gt, invdepth_gt_rescale = build_pcd_rescale(rendering, gt, depth, camera.ground_truth_depth, mask, camera.FoVx, camera.FoVy, rescale_depth_gt)
-                o3d.io.write_point_cloud(os.path.join(gt_path, '{0:05d}'.format(idx) + ".ply"), pcd_gt)
-                tifffile.imwrite(os.path.join(gt_path, '{0:05d}'.format(idx) + "_depth.tiff"), invdepth_gt_rescale.cpu().numpy())
-            else:
-                pcd = build_pcd(rendering, depth, torch.ones_like(depth).bool(), camera.FoVx, camera.FoVy)
-            o3d.io.write_point_cloud(os.path.join(render_path, '{0:05d}'.format(idx) + ".ply"), pcd)
+# TODO: add decoder
+# initialize Decoder in render
+def rendering(views: CameraDataset,
+              gaussians: FeatureGaussian,
+              render_path: str,
+              decoder: AbstractDecoder | None = None):
 
-# TODO
+    depth_path = os.path.join(render_path, "depth")
+    feature_path = os.paht.join(render_path, "features")
+    ground_truth_path = os.path.join(render_path, "ground_truth")
+
+    for index, view in enumerate(tqdm(views, desc="rendering progress")):
+        render_package = gaussians(view)
+        gt = view.original_image[0 : 3, :, :]
+        gt_feature_map = view.semantic_feature.cuda()
+        torchvision.utils.save_image(render_package["render"],
+                                     os.pasth.join(render_path, '{0:05d}.png'.format(index)))
+        torchvision.utils.save_image(gt, os.path.join(ground_truth_path, '{0:05d}.png'.format(index)))
+
+        depth = render_package["depth"]
+        scale_nor = depth.max().item()
+        depth_nor = depth / scale_nor
+        depth_tensor_squeezed = depth_nor.squeeze()  # Remove the channel dimension
+        colormap = plt.get_cmap('jet')
+        depth_colored = colormap(depth_tensor_squeezed.cpu().numpy())
+        depth_colored_rgb = depth_colored[:, :, :3]
+        depth_image = Image.fromarray((depth_colored_rgb * 255).astype(np.uint8))
+        output_path = os.path.join(depth_path, '{0:05d}.png'.format(index))
+        depth_image.save(output_path)
+        feature_map = F.interpolate(feature_map.unsqueeze(0), size=(gt_feature_map.shape[1], gt_feature_map.shape[2]), mode='bilinear', align_corners=True).squeeze(0) ###
+        if decoder is not None:
+            feature_map = decoder(feature_map)
+
+        # TODO: visualize and save feature maps
+
+        feature_map = feature_map.cpu().numpy().astype(np.float16)
+        torch.save(torch.tensor(feature_map).half(), os.path.join(feature_path, '{0:05d}_fmap_CxHxW.pt'.format(index)))
+
+# TODO: add decoder
 if __name__ == "__main__":
     from argparse import ArgumentParser
     parser = ArgumentParser()

@@ -10,6 +10,7 @@ from gaussian_splatting.utils import psnr
 from gaussian_splatting.dataset import CameraDataset
 from feature_3dgs import FeatureGaussian
 from feature_3dgs.trainer import FeatureTrainer
+from feature_3dgs.decoder import AbstractDecoder
 from feature_3dgs.prepare import basemodes, shliftmodes, prepare_feature_dataset, prepare_feature_gaussians, prepare_feature_trainer, prepare_feature_extractor
 
 def prepare_training(
@@ -20,24 +21,43 @@ def prepare_training(
 ) -> Tuple[CameraDataset, FeatureGaussian, FeatureTrainer]:
     dataset = prepare_feature_dataset(source=source, device=device, trainable_camera=trainable_camera, load_camera=load_camera, load_mask=load_mask, load_depth=load_depth)
     gaussians = prepare_feature_gaussians(sh_degree=sh_degree, source=source, device=device, trainable_camera=trainable_camera, load_ply=load_ply)
-    decoder = prepare_feature_extractor(mode="base", path = "None")
-    trainer = prepare_feature_trainer(gaussians=gaussians, decoder=decoder, dataset=dataset, mode=mode, trainable_camera=trainable_camera, load_ply=load_ply, with_scale_reg=with_scale_reg, configs=configs)
+    extractor = prepare_feature_extractor(mode="base", path = "None")
+    trainer = prepare_feature_trainer(gaussians=gaussians, extractor=extractor, dataset=dataset, mode=mode, trainable_camera=trainable_camera, load_ply=load_ply, with_scale_reg=with_scale_reg, configs=configs)
     return dataset, gaussians, trainer
 
 
-# TODO
 def save_cfg_args(destination: str, sh_degree: int, source: str):
     os.makedirs(destination, exist_ok=True)
     with open(os.path.join(destination, "cfg_args"), 'w') as cfg_log_f:
         cfg_log_f.write(str(Namespace(sh_degree=sh_degree, source_path=source)))
 
-def training(dataset: CameraDataset, gaussians: FeatureGaussian, trainer: FeatureTrainer, destination: str, iteration: int, save_iterations: List[int], device: str, empty_cache_every_step=False):
+def training(
+    dataset: CameraDataset,
+    gaussians: FeatureGaussian,
+    trainer: FeatureTrainer,
+    decoder: AbstractDecoder | None,
+    destination: str,
+    iteration: int,
+    save_iterations: List[int],
+    device: str,
+    empty_cache_every_step=False
+    ):
+    viewpoint_stack = dataset.cameras
+    viewpoint_cam = viewpoint_stack.pop(random.randint(0, len(viewpoint_stack)-1))
+    ground_truth_feature_map = trainer.extract_features(viewpoint_cam).cuda()
+    feature_map_out_dim = ground_truth_feature_map.shape[0]
+
+    if decoder is not None:
+        feature_map_in_dim = int(feature_map_out_dim / 4)
+        decoder_optimizer = torch.optim.Adam(decoder.parameters(), lr=0.0001)
+
     shutil.rmtree(os.path.join(destination, "point_cloud"), ignore_errors=True)  # remove the previous point cloud
     pbar = tqdm(range(1, iteration+1), dynamic_ncols=True, desc="Training")
     epoch = list(range(len(dataset)))
     epoch_psnr = torch.empty(3, 0, device=device)
     epoch_maskpsnr = torch.empty(3, 0, device=device)
     ema_loss_for_log = 0.0
+    total_loss_for_log = 0.0
     avg_psnr_for_log = 0.0
     avg_maskpsnr_for_log = 0.0
     for step in pbar:
@@ -50,6 +70,9 @@ def training(dataset: CameraDataset, gaussians: FeatureGaussian, trainer: Featur
             random.shuffle(epoch)
         idx = epoch[epoch_idx]
         loss, out = trainer.step(dataset[idx])
+        feature_map = out["feature_map"]
+        render = out["render"]
+        # TODO: in original needs to freeze gaussian training and train decoder optimizer after densification step (train.py line 148)
         if empty_cache_every_step:
             torch.cuda.empty_cache()
         with torch.no_grad():
