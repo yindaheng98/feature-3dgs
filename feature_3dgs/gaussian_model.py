@@ -5,43 +5,52 @@ from gaussian_splatting import GaussianModel, Camera
 from feature_3dgs.diff_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
 from feature_3dgs.decoder import AbstractDecoder
 
-class FeatureGaussian(GaussianModel):
-    def __init__(self, sh_degree, decoder: AbstractDecoder):
-        super().__init__(self, sh_degree)
+
+class FeatureGaussianModel(GaussianModel):
+    def __init__(self, sh_degree: int, decoder: AbstractDecoder = None):
+        super(FeatureGaussianModel, self).__init__(sh_degree)
         self._semantic_features = torch.empty(0)
         self._decoder = decoder
 
-    def capture(self):
-        return(
-            self.active_sh_degree,
-            self._xyz,
-            self._features_dc,
-            self._features_rest,
-            self._scaling,
-            self._rotation,
-            self._opacity,
-            self.max_radii2D,
-            self.xyz_gradient_accum,
-            self.denom,
-            self.optimizer.state_dict(),
-            self.spatial_lr_scale,
-            self._semantic_features,
-        )
-
-    @property
-    def get_decoder(self):
-        return self._decoder
+    def to(self, device):
+        super().to(device)
+        self._semantic_features = self._semantic_features.to(device)
+        self._decoder = self._decoder.to(device) if self._decoder is not None else None
+        return self
 
     @property
     def get_semantic_features(self):
         return self._semantic_features
 
-    def rewrite_semantic_feature(self, x):
-        self._semantic_features = x
+    @property
+    def get_decoder(self):
+        return self._decoder
 
     def forward(self, viewpoint_camera: Camera):
+        return self.render(
+            viewpoint_camera=viewpoint_camera,
+            means3D=self.get_xyz,
+            opacity=self.get_opacity,
+            scales=self.get_scaling,
+            rotations=self.get_rotation,
+            shs=self.get_features,
+            semantic_features=self.get_semantic_features,
+        )
+
+    def render(
+        self,
+        viewpoint_camera: Camera,
+        means3D: torch.Tensor,
+        opacity: torch.Tensor,
+        scales: torch.Tensor,
+        rotations: torch.Tensor,
+        shs: torch.Tensor,
+        semantic_features: torch.Tensor,
+        colors_precomp=None,
+        cov3D_precomp=None,
+    ) -> dict:
         # Create zero tensor. We will use it to make pytorch return gradients of the 2D (screen-space) means
-        screenspace_points = torch.zeros_like(self.get_xyz, dtype=self.get_xyz.dtype, requires_grad=True, device=self._xyz.device) + 0
+        screenspace_points = torch.zeros_like(means3D, dtype=means3D.dtype, requires_grad=True, device=means3D.device) + 0
         try:
             screenspace_points.retain_grad()
         except:
@@ -63,28 +72,20 @@ class FeatureGaussian(GaussianModel):
             sh_degree=self.active_sh_degree,
             campos=viewpoint_camera.camera_center,
             prefiltered=False,
-            debug=self.debug
+            debug=self.debug,
+            antialiasing=self.antialiasing
         )
 
         rasterizer = GaussianRasterizer(raster_settings=raster_settings)
-        means3D = self.get_xyz
         means2D = screenspace_points
-        opacity = self.get_opacity
-
-        scales = self.get_scaling
-        rotations = self.get_rotation
-
-        shs = self.get_features
-
-        semantic_feature = self.get_semantic_feature
 
         # Rasterize visible Gaussians to image, obtain their radii (on screen).
-        rendered_image, feature_map, radii, depth_image = rasterizer(
+        rendered_image, feature_map, radii = rasterizer(
             means3D=means3D,
             means2D=means2D,
             shs=shs,
             colors_precomp=None,
-            semantic_feature = semantic_feature,
+            semantic_feature=semantic_features,
             opacities=opacity,
             scales=scales,
             rotations=rotations,
@@ -96,11 +97,13 @@ class FeatureGaussian(GaussianModel):
         rendered_image = rendered_image.clamp(0, 1)
         out = {
             "render": rendered_image,
-            "viewspace_points": screenspace_points,
             "visibility_filter": (radii > 0).nonzero(),
             "radii": radii,
+            # Used by the densifier to get the gradient of the viewspace points
+            "get_viewspace_grad": lambda out: out["viewspace_points"].grad,
+            "viewspace_points": screenspace_points,
+            # Feature map
             'feature_map': feature_map,
-            "depth": depth_image
         }
         return out
 
@@ -108,28 +111,44 @@ class FeatureGaussian(GaussianModel):
             self,
             points: torch.Tensor,
             colors: torch.Tensor,
-            semantic_feature_size: int,
-            speedup: bool
+            semantic_features_size: int,
     ):
         super().create_from_pcd(points, colors)
-        if speedup: # speed up for Segmentation
-            semantic_feature_size = int(semantic_feature_size/4)
-        self._semantic_features = torch.zeros(self._xyz.shape[0], semantic_feature_size, 1).float().cuda() 
-        self._semantic_features = nn.Parameter(self._semantic_features.transpose(1, 2).contiguous().requires_grad_(True))
+        semantic_features = torch.zeros((self._xyz.shape[0], semantic_features_size), dtype=torch.float, device=self._xyz.device)
+        self._semantic_features = nn.Parameter(semantic_features.requires_grad_(True))
         return self
 
-    def update_points_add(self,
-            xyz: nn.Parameter,
-            features_dc: nn.Parameter,
-            features_rest: nn.Parameter,
-            scaling: nn.Parameter,
-            rotation: nn.Parameter,
-            opacity: nn.Parameter,
-            semantic_features: nn.Parameter
+    def save_ply(self, path: str):
+        super().save_ply(path)
+        semantic_features = self._semantic_features.detach()
+        torch.save(semantic_features, path + '.semantic_features.pt')
+
+    def load_ply(self, path: str):
+        super().load_ply(path)
+        semantic_features = torch.load(path + '.semantic_features.pt').to(self._xyz.device)
+        self._semantic_features = nn.Parameter(semantic_features.requires_grad_(True))
+
+    def update_points_add(
+        self,
+        xyz: nn.Parameter,
+        features_dc: nn.Parameter,
+        features_rest: nn.Parameter,
+        scaling: nn.Parameter,
+        rotation: nn.Parameter,
+        opacity: nn.Parameter,
+        semantic_features: nn.Parameter,
     ):
+        super().update_points_add(
+            xyz=xyz,
+            features_dc=features_dc,
+            features_rest=features_rest,
+            scaling=scaling,
+            rotation=rotation,
+            opacity=opacity,
+        )
+
         def is_same_prefix(attr: nn.Parameter, ref: nn.Parameter):
             return (attr[:ref.shape[0]] == ref).all()
-        super().update_points_add(xyz, features_dc, features_rest, scaling, rotation, opacity)
         assert is_same_prefix(semantic_features, self._semantic_features)
         self._semantic_features = semantic_features
 
@@ -143,10 +162,18 @@ class FeatureGaussian(GaussianModel):
             opacity_mask: torch.Tensor, opacity: nn.Parameter,
             semantic_features_mask: torch.Tensor, semantic_features: nn.Parameter
     ):
-        super().update_points_replace(xyz_mask, xyz, features_dc_mask, features_dc, features_rest_mask, features_rest, scaling_mask, scaling, rotation_mask, rotation, opacity_mask, opacity)
+        super().update_points_replace(
+            xyz_mask=xyz_mask, xyz=xyz,
+            features_dc_mask=features_dc_mask, features_dc=features_dc,
+            features_rest_mask=features_rest_mask, features_rest=features_rest,
+            scaling_mask=scaling_mask, scaling=scaling,
+            rotation_mask=rotation_mask, rotation=rotation,
+            opacity_mask=opacity_mask, opacity=opacity,
+        )
+
         def is_same_rest(attr: nn.Parameter, ref: nn.Parameter, mask: torch.Tensor):
             return (attr[~mask, ...] == ref[~mask, ...]).all()
-        assert semantic_features is None or is_same_rest(semantic_features, self._semantic_features, semantic_features_mask)
+        assert semantic_features_mask is None or is_same_rest(semantic_features, self._semantic_features, semantic_features_mask)
         self._semantic_features = semantic_features
 
     def update_points_remove(
@@ -160,8 +187,17 @@ class FeatureGaussian(GaussianModel):
             opacity,
             semantic_features
     ):
+        super().update_points_remove(
+            removed_mask=removed_mask,
+            xyz=xyz,
+            features_dc=features_dc,
+            features_rest=features_rest,
+            scaling=scaling,
+            rotation=rotation,
+            opacity=opacity,
+        )
+
         def is_same_rest(attr: nn.Parameter, ref: nn.Parameter):
             return (attr == ref[~removed_mask, ...]).all()
-        super().update_points_remove(removed_mask, xyz, features_dc, features_rest, scaling, rotation, opacity)
         assert is_same_rest(semantic_features, self._semantic_features)
         self._semantic_features = semantic_features
