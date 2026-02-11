@@ -121,11 +121,11 @@ class FeatureGaussianModel(GaussianModel):
     def save_ply(self, path: str):
         super().save_ply(path)
         semantic_features = self._semantic_features.detach()
-        torch.save(semantic_features, path + '.semantic_features.pt')
+        torch.save(semantic_features, path + '.semantic.pt')
 
     def load_ply(self, path: str):
         super().load_ply(path)
-        semantic_features = torch.load(path + '.semantic_features.pt').to(self._xyz.device)
+        semantic_features = torch.load(path + '.semantic.pt').to(self._xyz.device)
         self._semantic_features = nn.Parameter(semantic_features.requires_grad_(True))
 
     def update_points_add(
