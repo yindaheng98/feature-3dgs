@@ -1,8 +1,6 @@
 import os
 
-import torch
-import torchvision.transforms.functional as TF
-from feature_3dgs.dataset.abc import AbstractFeatureExtractor
+from .extractor import DINOv3Extractor
 
 from dinov3.hub.backbones import (
     dinov3_convnext_tiny,
@@ -11,7 +9,6 @@ from dinov3.hub.backbones import (
     dinov3_convnext_large,
 )
 
-from .extractor import IMAGENET_MEAN, IMAGENET_STD, padding
 
 MODEL_DINOV3_CONVNEXTT = "dinov3_convnext_tiny"
 MODEL_DINOV3_CONVNEXTS = "dinov3_convnext_small"
@@ -60,7 +57,7 @@ MODEL_TO_FILENAME = {
 }
 
 
-class DINOv3ConvNextExtractor(AbstractFeatureExtractor):
+class DINOv3ConvNextExtractor(DINOv3Extractor):
     """Feature extractor based on DINOv3 ConvNeXt models.
 
     ConvNeXt has 4 stages (stem + 3 downsampling layers).
@@ -71,42 +68,7 @@ class DINOv3ConvNextExtractor(AbstractFeatureExtractor):
         assert version in MODELS, f"DINOv3 ConvNeXt version '{version}' not supported. Choose from: {MODELS}"
         local_path = os.path.join(checkpoint_dir, MODEL_TO_FILENAME[version])
         if os.path.isfile(local_path):
-            self.model = MODEL_TO_FACTORY[version](pretrained=True, weights=local_path)
+            model = MODEL_TO_FACTORY[version](pretrained=True, weights=local_path)
         else:
-            self.model = MODEL_TO_FACTORY[version](pretrained=True)
-        self.model.eval()
-
-    @torch.no_grad()
-    def __call__(self, image: torch.Tensor) -> torch.Tensor:
-        """Extract DINOv3 ConvNeXt features from an image tensor.
-
-        Args:
-            image: (C, H, W) tensor in [0, 1] range.
-
-        Returns:
-            Feature map of shape (D, H_out, W_out).
-        """
-        x = image
-
-        # Normalize with ImageNet statistics
-        x = TF.normalize(x, mean=IMAGENET_MEAN, std=IMAGENET_STD)
-
-        # Pad to stride-multiple (32 for ConvNeXt)
-        x = padding(x)
-
-        # get_intermediate_layers with n=range(NUM_STAGES) returns all 4 stages
-        # Each element is (B, C, H_stage, W_stage) when reshape=True, norm=True
-        feats = self.model.get_intermediate_layers(
-            x.unsqueeze(0),  # add batch dim
-            n=range(NUM_STAGES),
-            reshape=True,
-            norm=True,
-        )
-        # Last stage features: (1, D, H_last, W_last)
-        feature_map = feats[-1].squeeze(0)  # (D, H_last, W_last)
-
-        return feature_map
-
-    def to(self, device) -> 'DINOv3ConvNextExtractor':
-        self.model.to(device)
-        return self
+            model = MODEL_TO_FACTORY[version](pretrained=True)
+        super().__init__(model=model, n_layers=NUM_STAGES, patch_size=INPUT_PAD_SIZE)
