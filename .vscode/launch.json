@@ -37,5 +37,21 @@
                 "30000",
             ]
         },
+        {
+            "name": "show",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "feature_3dgs.dataset.show",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "-n",
+                "dinov3_vits16",
+                "-s",
+                "data/flame_steak/frame1",
+                "-d",
+                "output/flame_steak-semantic/frame1",
+            ]
+        },
     ]
 }

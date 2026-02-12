@@ -51,9 +51,10 @@ def show_dataset(dataset, destination: str):
         axes[1].set_title("PCA Projection")
         axes[1].axis("off")
 
-        fig.suptitle(dataset[idx].image_name, fontsize=10)
+        image_name = os.path.splitext(os.path.basename(dataset[idx].ground_truth_image_path))[0]
+        fig.suptitle(image_name, fontsize=10)
         fig.tight_layout()
-        save_path = os.path.join(destination, f"{dataset[idx].image_name}.png")
+        save_path = os.path.join(destination, f"{image_name}.png")
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         fig.savefig(save_path, bbox_inches="tight", pad_inches=0.1)
         plt.close(fig)
@@ -73,5 +74,5 @@ if __name__ == "__main__":
     dataset = prepare_dataset(source=args.source, device=args.device, trainable_camera=False, load_camera=None, load_mask=False, load_depth=False)
 
     configs = {o.split("=", 1)[0]: eval(o.split("=", 1)[1]) for o in args.option}
-    dataset = build_dataset(name=args.name, cameras=dataset, **configs)
+    dataset = build_dataset(name=args.name, cameras=dataset, **configs).to(args.device)
     show_dataset(dataset, destination=args.destination)
