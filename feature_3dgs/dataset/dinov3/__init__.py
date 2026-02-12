@@ -1,2 +1,3 @@
 from .extractor import DINOv3Extractor
-from .dataset import DINOv3FeatureCameraDataset, available_datasets
+from .convnext import DINOv3ConvNextExtractor
+from .dataset import DINOv3FeatureCameraDataset, DINOv3ConvNextFeatureCameraDataset, available_datasets
