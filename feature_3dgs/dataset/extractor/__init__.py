@@ -1,1 +1,1 @@
-from .yolo_extractor import YOLOExtractor
+from .yolo_extractor import YOLOExtractor, YOLOFeatureCameraDataset

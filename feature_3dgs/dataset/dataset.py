@@ -15,14 +15,6 @@ class AbstractFeatureExtractor(ABC):
     def to(self, device) -> 'AbstractFeatureExtractor':
         return self
 
-    @abstractmethod
-    def load(self, path: str) -> None:
-        pass
-
-    @abstractmethod
-    def save(self, path: str) -> None:
-        pass
-
 
 # Dynamically create FeatureCamera as a proper NamedTuple
 # with all Camera fields + feature_map
