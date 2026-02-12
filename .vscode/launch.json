@@ -46,11 +46,11 @@
             "justMyCode": false,
             "args": [
                 "-n",
-                "dinov3_vits16",
+                "dinov3_vith16plus",
                 "-s",
-                "data/flame_steak/frame1",
+                "data/truck",
                 "-d",
-                "output/flame_steak-semantic/frame1",
+                "output/truck-semantic",
             ]
         },
     ]
