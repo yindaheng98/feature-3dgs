@@ -65,7 +65,7 @@ def show_dataset(dataset, destination: str):
 if __name__ == "__main__":
     from argparse import ArgumentParser
     parser = ArgumentParser()
-    parser.add_argument("-n", "--name", choices=available_datasets.keys(), type=str)
+    parser.add_argument("-n", "--name", choices=available_datasets, type=str)
     parser.add_argument("-s", "--source", required=True, type=str)
     parser.add_argument("-d", "--destination", required=True, type=str)
     parser.add_argument("--device", default="cuda", type=str)
