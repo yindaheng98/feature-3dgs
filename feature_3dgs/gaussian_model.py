@@ -80,12 +80,12 @@ class FeatureGaussianModel(GaussianModel):
         means2D = screenspace_points
 
         # Rasterize visible Gaussians to image, obtain their radii (on screen).
-        rendered_image, feature_map, radii = rasterizer(
+        rendered_image, feature_map, radii, invdepth_image = rasterizer(
             means3D=means3D,
             means2D=means2D,
             shs=shs,
             colors_precomp=None,
-            semantic_feature=semantic_features,
+            semantic_features=semantic_features,
             opacities=opacity,
             scales=scales,
             rotations=rotations,
@@ -99,6 +99,7 @@ class FeatureGaussianModel(GaussianModel):
             "render": rendered_image,
             "visibility_filter": (radii > 0).nonzero(),
             "radii": radii,
+            "invdepth": invdepth_image,
             # Used by the densifier to get the gradient of the viewspace points
             "get_viewspace_grad": lambda out: out["viewspace_points"].grad,
             "viewspace_points": screenspace_points,

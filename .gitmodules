@@ -1,4 +1,4 @@
 [submodule "submodules/diff-gaussian-rasterization"]
 	path = submodules/diff-gaussian-rasterization
 	url = https://github.com/yindaheng98/diff-gaussian-rasterization-feature.git
-	branch = main
+	branch = dr_aa
