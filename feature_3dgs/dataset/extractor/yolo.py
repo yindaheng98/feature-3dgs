@@ -10,6 +10,7 @@ class YOLOExtractor(AbstractFeatureExtractor):
         self.model = YOLO(version)
 
     def __call__(self, image: torch.Tensor) -> torch.Tensor:
+        # TODO: https://github.com/orgs/ultralytics/discussions/5906
         with torch.no_grad():
             outputs = self.model(image)
             feature_resized = F.interpolate(
