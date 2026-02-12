@@ -107,12 +107,12 @@ class FeatureGaussianModel(GaussianModel):
             means3D=means3D,
             means2D=means2D,
             shs=shs,
-            colors_precomp=None,
+            colors_precomp=colors_precomp,
             semantic_features=semantic_features,
             opacities=opacity,
             scales=scales,
             rotations=rotations,
-            cov3D_precomp=None)
+            cov3D_precomp=cov3D_precomp)
         rendered_image = viewpoint_camera.postprocess(viewpoint_camera, rendered_image)
 
         # Those Gaussians that were frustum culled or had a radius of 0 were not visible.
