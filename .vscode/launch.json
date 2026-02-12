@@ -50,7 +50,7 @@
                 "-s",
                 "data/truck",
                 "-d",
-                "output/truck-semantic",
+                "output/truck-dinov3_vith16plus",
             ]
         },
     ]
