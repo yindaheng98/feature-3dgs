@@ -2,7 +2,7 @@ import torch
 from gaussian_splatting.utils import l1_loss
 from gaussian_splatting.trainer import TrainerWrapper, AbstractTrainer
 from feature_3dgs import FeatureGaussianModel
-from feature_3dgs.dataset import FeatureCamera
+from feature_3dgs import FeatureCamera
 
 
 class FeatureTrainer(TrainerWrapper):

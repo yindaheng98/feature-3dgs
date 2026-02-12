@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 from ultralytics import YOLO
-from feature_3dgs.dataset import AbstractFeatureExtractor
+from feature_3dgs import AbstractFeatureExtractor
 
 
 class YOLOExtractor(AbstractFeatureExtractor):

@@ -1,5 +1,5 @@
 from gaussian_splatting.dataset import CameraDataset
-from feature_3dgs.dataset import FeatureCameraDataset
+from feature_3dgs import FeatureCameraDataset
 from .vit import DINOv3ViTExtractor, MODELS as VIT_MODELS, MODEL_DINOV3_VITS
 from .convnext import DINOv3ConvNextExtractor, MODELS as CONVNEXT_MODELS, MODEL_DINOV3_CONVNEXTB
 
