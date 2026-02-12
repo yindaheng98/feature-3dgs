@@ -57,18 +57,11 @@ MODEL_TO_FILENAME = {
 }
 
 
-class DINOv3ConvNextExtractor(DINOv3Extractor):
-    """Feature extractor based on DINOv3 ConvNeXt models.
-
-    ConvNeXt has 4 stages (stem + 3 downsampling layers).
-    By default we extract the last-stage features via ``get_intermediate_layers``.
-    """
-
-    def __init__(self, version: str = MODEL_DINOV3_CONVNEXTB, checkpoint_dir: str = "checkpoints"):
-        assert version in MODELS, f"DINOv3 ConvNeXt version '{version}' not supported. Choose from: {MODELS}"
-        local_path = os.path.join(checkpoint_dir, MODEL_TO_FILENAME[version])
-        if os.path.isfile(local_path):
-            model = MODEL_TO_FACTORY[version](pretrained=True, weights=local_path)
-        else:
-            model = MODEL_TO_FACTORY[version](pretrained=True)
-        super().__init__(model=model, n_layers=NUM_STAGES, patch_size=INPUT_PAD_SIZE)
+def DINOv3ConvNextExtractor(version: str = MODEL_DINOV3_CONVNEXTB, checkpoint_dir: str = "checkpoints") -> DINOv3Extractor:
+    assert version in MODELS, f"DINOv3 ConvNeXt version '{version}' not supported. Choose from: {MODELS}"
+    local_path = os.path.join(checkpoint_dir, MODEL_TO_FILENAME[version])
+    if os.path.isfile(local_path):
+        model = MODEL_TO_FACTORY[version](pretrained=True, weights=local_path)
+    else:
+        model = MODEL_TO_FACTORY[version](pretrained=True)
+    return DINOv3Extractor(model=model, n_layers=NUM_STAGES, patch_size=INPUT_PAD_SIZE)

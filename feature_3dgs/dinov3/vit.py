@@ -84,19 +84,12 @@ MODEL_TO_FILENAME = {
 }
 
 
-class DINOv3ViTExtractor(DINOv3Extractor):
-    """Feature extractor based on DINOv3 ViT models.
-
-    Extracts dense patch-level features from the last transformer layer,
-    then bilinearly interpolates them to the original image resolution.
-    """
-
-    def __init__(self, version: str = "dinov3_vitl16", checkpoint_dir: str = "checkpoints"):
-        assert version in MODELS, f"DINOv3 version '{version}' not supported. Choose from: {MODELS}"
-        n_layers = MODEL_TO_NUM_LAYERS[version]
-        local_path = os.path.join(checkpoint_dir, MODEL_TO_FILENAME[version])
-        if os.path.isfile(local_path):
-            model = MODEL_TO_FACTORY[version](pretrained=True, weights=local_path)
-        else:
-            model = MODEL_TO_FACTORY[version](pretrained=True)
-        super().__init__(model=model, n_layers=n_layers, patch_size=PATCH_SIZE)
+def DINOv3ViTExtractor(version: str = "dinov3_vitl16", checkpoint_dir: str = "checkpoints") -> DINOv3Extractor:
+    assert version in MODELS, f"DINOv3 version '{version}' not supported. Choose from: {MODELS}"
+    n_layers = MODEL_TO_NUM_LAYERS[version]
+    local_path = os.path.join(checkpoint_dir, MODEL_TO_FILENAME[version])
+    if os.path.isfile(local_path):
+        model = MODEL_TO_FACTORY[version](pretrained=True, weights=local_path)
+    else:
+        model = MODEL_TO_FACTORY[version](pretrained=True)
+    return DINOv3Extractor(model=model, n_layers=n_layers, patch_size=PATCH_SIZE)

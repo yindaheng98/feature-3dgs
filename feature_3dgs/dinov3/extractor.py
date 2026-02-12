@@ -19,7 +19,7 @@ def padding(image: torch.Tensor, patch_size: int) -> torch.Tensor:
 
 
 class DINOv3Extractor(AbstractFeatureExtractor):
-    """Feature extractor based on DINOv3 ViT models.
+    """Feature extractor based on DINOv3 models.
 
     Extracts dense patch-level features from the last transformer layer,
     then bilinearly interpolates them to the original image resolution.
