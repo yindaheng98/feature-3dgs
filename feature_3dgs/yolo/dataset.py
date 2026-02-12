@@ -1,5 +1,5 @@
 from gaussian_splatting.dataset import CameraDataset
-from feature_3dgs.dataset.abc import FeatureCameraDataset
+from feature_3dgs.dataset import FeatureCameraDataset
 from .extractor import YOLOExtractor
 
 

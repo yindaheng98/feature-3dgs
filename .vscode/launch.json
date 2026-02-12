@@ -41,7 +41,7 @@
             "name": "show",
             "type": "debugpy",
             "request": "launch",
-            "module": "feature_3dgs.dataset.show",
+            "module": "feature_3dgs.show",
             "console": "integratedTerminal",
             "justMyCode": false,
             "args": [

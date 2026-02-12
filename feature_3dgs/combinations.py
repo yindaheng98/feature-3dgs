@@ -1,5 +1,5 @@
 from gaussian_splatting.dataset import CameraDataset
-from .abc import FeatureCameraDataset
+from .dataset import FeatureCameraDataset
 from .yolo import available_datasets as available_yolo_datasets
 from .dinov3 import available_datasets as available_dinov3_datasets
 

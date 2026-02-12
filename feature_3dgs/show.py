@@ -4,7 +4,7 @@ import torch
 from sklearn.decomposition import PCA
 from tqdm import tqdm
 from gaussian_splatting.prepare import prepare_dataset
-from feature_3dgs.dataset import build_dataset
+from .combinations import build_dataset
 
 
 def show_dataset(dataset, destination: str):
