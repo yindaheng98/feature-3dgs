@@ -1,6 +1,6 @@
 from gaussian_splatting.dataset import CameraDataset
 from feature_3dgs.dataset.abc import FeatureCameraDataset
-from .yolo import YOLOExtractor
+from .extractor import YOLOExtractor
 
 
 # https://github.com/ultralytics/assets/releases

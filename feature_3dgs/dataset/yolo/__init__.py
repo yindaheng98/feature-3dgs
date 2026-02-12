@@ -1,2 +1,2 @@
-from .yolo import YOLOExtractor
-from .build import YOLOVERSIONS, YOLOFeatureCameraDataset, available_datasets
+from .extractor import YOLOExtractor
+from .dataset import YOLOVERSIONS, YOLOFeatureCameraDataset, available_datasets
