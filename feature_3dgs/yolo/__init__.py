@@ -1,2 +1,3 @@
 from .extractor import YOLOExtractor
-from .dataset import YOLOFeatureCameraDataset, available_datasets
+from .decoder import YOLODecoder
+from . import registry

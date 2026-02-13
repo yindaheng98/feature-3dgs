@@ -1,6 +1,11 @@
-from gaussian_splatting.dataset import CameraDataset
-from feature_3dgs import FeatureCameraDataset
+from typing import Tuple
+
+from feature_3dgs.extractor import AbstractFeatureExtractor
+from feature_3dgs.decoder import AbstractDecoder
+from feature_3dgs.registry import register_extractor_decoder
+
 from .extractor import YOLOExtractor
+from .decoder import YOLODecoder
 
 
 # https://github.com/ultralytics/assets/releases
@@ -34,12 +39,4 @@ YOLOVERSIONS = [
     "yolo_nas_s", "yolo_nas_m", "yolo_nas_l",
 ]
 
-
-def YOLOFeatureCameraDataset(cameras: CameraDataset, version: str = "yolov8n") -> FeatureCameraDataset:
-    assert version in YOLOVERSIONS, f"YOLO version {version} not supported. Choose from: {YOLOVERSIONS}"
-    return FeatureCameraDataset(cameras, feature_extractor=YOLOExtractor(version + ".pt"))
-
-
-available_datasets = {
-    version: lambda cameras: YOLOFeatureCameraDataset(cameras, version=version) for version in YOLOVERSIONS
-}
+# TODO
