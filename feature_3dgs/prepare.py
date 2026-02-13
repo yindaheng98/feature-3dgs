@@ -18,7 +18,7 @@ from .trainer.trainer import SemanticTrainerWrapper
 
 
 def prepare_dataset_and_decoder(
-        name: str, source: str, device: str, embed_dim: int,
+        name: str, source: str, embed_dim: int, device: str, dataset_cache_device: str = None,
         trainable_camera: bool = False, load_camera: str = None, load_mask=True, load_depth=True,
         **kwargs
 ) -> Tuple[FeatureCameraDataset, AbstractFeatureDecoder]:
@@ -35,7 +35,7 @@ def prepare_dataset_and_decoder(
     extractor, decoder = build_extractor_decoder(
         name=name, embed_dim=embed_dim, **kwargs
     )
-    dataset = FeatureCameraDataset(cameras, extractor=extractor).to(device)
+    dataset = FeatureCameraDataset(cameras, extractor=extractor, cache_device=dataset_cache_device).to(device)
     return dataset, decoder
 
 

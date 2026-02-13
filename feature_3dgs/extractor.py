@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import NamedTuple
 import torch
 from gaussian_splatting import Camera
 from gaussian_splatting.dataset import CameraDataset
@@ -16,23 +15,13 @@ class AbstractFeatureExtractor(ABC):
         return self
 
 
-# Dynamically create FeatureCamera as a proper NamedTuple
-# with all Camera fields + feature_map
-FeatureCamera = NamedTuple('FeatureCamera', [
-    (name, Camera.__annotations__[name]) for name in Camera._fields
-] + [('feature_map', torch.Tensor)])
-FeatureCamera.__new__.__defaults__ = (
-    *Camera._field_defaults.values(),
-    None,  # feature_map default
-)
-
-
 class FeatureCameraDataset(CameraDataset):
 
-    def __init__(self, cameras: CameraDataset, extractor: AbstractFeatureExtractor):
+    def __init__(self, cameras: CameraDataset, extractor: AbstractFeatureExtractor, cache_device=None):
         self.cameras = cameras
         self.extractor = extractor
         self.feature_map_cache = [None] * len(cameras)
+        self.cache_device = cache_device
 
     def to(self, device) -> 'FeatureCameraDataset':
         self.cameras.to(device)
@@ -42,15 +31,18 @@ class FeatureCameraDataset(CameraDataset):
     def __len__(self) -> int:
         return len(self.cameras)
 
-    def __getitem__(self, idx) -> FeatureCamera:
+    def __getitem__(self, idx) -> Camera:
         camera = self.cameras[idx]
         feature_map = None
         if camera.ground_truth_image is not None:
             if self.feature_map_cache[idx] is None:
-                self.feature_map_cache[idx] = self.extractor(camera.ground_truth_image).cpu()
+                feature_map = self.extractor(camera.ground_truth_image)
+                if self.cache_device is not None:
+                    feature_map = feature_map.to(self.cache_device)
+                self.feature_map_cache[idx] = feature_map
             feature_map = self.feature_map_cache[idx].to(camera.ground_truth_image.device)
-        return FeatureCamera(*camera, feature_map=feature_map)
+        return camera._replace(custom_data={**camera.custom_data, 'feature_map': feature_map})
 
     @property
     def embed_dim(self) -> int:
-        return self[0].feature_map.shape[0]
+        return self[0].custom_data['feature_map'].shape[0]

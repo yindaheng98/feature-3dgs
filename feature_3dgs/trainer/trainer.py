@@ -2,7 +2,8 @@ from typing import Callable
 import torch
 from gaussian_splatting.utils import l1_loss
 from gaussian_splatting.trainer import TrainerWrapper, AbstractTrainer
-from feature_3dgs import SemanticGaussianModel, FeatureCamera
+from gaussian_splatting import Camera
+from feature_3dgs import SemanticGaussianModel
 
 
 class SemanticTrainer(TrainerWrapper):
@@ -21,10 +22,10 @@ class SemanticTrainer(TrainerWrapper):
         self.semantic_loss_weight = semantic_loss_weight
         self.mask_mode = semantic_mask_mode
 
-    def loss(self, out: dict, camera: FeatureCamera) -> torch.Tensor:
+    def loss(self, out: dict, camera: Camera) -> torch.Tensor:
         loss = super().loss(out, camera)
         render = out['feature_map']
-        gt = camera.feature_map
+        gt = camera.custom_data['feature_map']
         mask = camera.ground_truth_image_mask
         match self.mask_mode:
             case "none":

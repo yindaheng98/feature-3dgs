@@ -9,12 +9,12 @@ from feature_3dgs.prepare import prepare_dataset_and_decoder, prepare_gaussians,
 
 
 def prepare_training(
-        name: str, sh_degree: int, source: str, device: str, embed_dim: int, mode: str,
+        name: str, sh_degree: int, mode: str, source: str, embed_dim: int, device: str, dataset_cache_device: str = None,
         trainable_camera: bool = False, load_ply: str = None, load_camera: str = None,
         load_mask=True, load_depth=True, load_semantic: bool = True,
         configs={}, **kwargs) -> Tuple[FeatureCameraDataset, SemanticGaussianModel, AbstractTrainer]:
     dataset, decoder = prepare_dataset_and_decoder(
-        name=name, source=source, device=device, embed_dim=embed_dim,
+        name=name, source=source, embed_dim=embed_dim, device=device, dataset_cache_device=dataset_cache_device,
         trainable_camera=trainable_camera, load_camera=load_camera,
         load_mask=load_mask, load_depth=load_depth, **kwargs)
     gaussians = prepare_gaussians(
@@ -42,6 +42,7 @@ if __name__ == "__main__":
     parser.add_argument("--mode", choices=sorted(modes.keys()), default="base")
     parser.add_argument("--save_iterations", nargs="+", type=int, default=[7000, 30000])
     parser.add_argument("--device", default="cuda", type=str)
+    parser.add_argument("--dataset-cache-device", default="cpu", type=str)
     parser.add_argument("--empty_cache_every_step", action='store_true')
     parser.add_argument("-o", "--option", default=[], action='append', type=str)
     args = parser.parse_args()
@@ -50,8 +51,10 @@ if __name__ == "__main__":
 
     configs = {o.split("=", 1)[0]: eval(o.split("=", 1)[1]) for o in args.option}
     dataset, gaussians, trainer = prepare_training(
-        name=args.name, sh_degree=args.sh_degree, source=args.source, device=args.device,
-        embed_dim=args.embed_dim, mode=args.mode, trainable_camera="camera" in args.mode,
+        name=args.name, sh_degree=args.sh_degree, mode=args.mode,
+        source=args.source, embed_dim=args.embed_dim,
+        device=args.device, dataset_cache_device=args.dataset_cache_device,
+        trainable_camera="camera" in args.mode,
         load_ply=args.load_ply, load_camera=args.load_camera,
         load_mask=not args.no_image_mask, load_depth=not args.no_depth_data,
         configs=configs)

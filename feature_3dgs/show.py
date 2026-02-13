@@ -19,7 +19,7 @@ def show_dataset(dataset, destination: str):
     all_features = []
     print("Pass 1/2: collecting features for PCA fitting ...")
     for idx in tqdm(range(len(dataset)), desc="Extracting"):
-        feature_map = dataset[idx].feature_map  # (D, H_patches, W_patches)
+        feature_map = dataset[idx].custom_data['feature_map']  # (D, H_patches, W_patches)
         D, _, _ = feature_map.shape
         features = feature_map.reshape(D, -1).permute(1, 0).cpu()  # Reshape to (H*W, D)
         all_features.append(features)
@@ -32,7 +32,7 @@ def show_dataset(dataset, destination: str):
     # ---- Second pass: transform and save visualisations ----
     print("Pass 2/2: projecting features and saving images ...")
     for idx in tqdm(range(len(dataset)), desc="Saving"):
-        feature_map = dataset[idx].feature_map  # (D, H_patches, W_patches)
+        feature_map = dataset[idx].custom_data['feature_map']  # (D, H_patches, W_patches)
         D, H, W = feature_map.shape
         features = feature_map.reshape(D, -1).permute(1, 0).cpu().numpy()  # (H*W, D)
         # PCA projection -> (H*W, 3) -> (H, W, 3)
@@ -69,13 +69,14 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--destination", required=True, type=str)
     parser.add_argument("--embed-dim", default=3, type=int)
     parser.add_argument("--device", default="cuda", type=str)
+    parser.add_argument("--dataset-cache-device", default="cpu", type=str)
     parser.add_argument("-o", "--option", default=[], action='append', type=str)
     args = parser.parse_args()
 
     configs = {o.split("=", 1)[0]: eval(o.split("=", 1)[1]) for o in args.option}
     dataset, decoder = prepare_dataset_and_decoder(
         name=args.name, source=args.source,
-        embed_dim=args.embed_dim, device=args.device, **configs
+        embed_dim=args.embed_dim, device=args.device, dataset_cache_device=args.dataset_cache_device, **configs
     )
     del decoder
     torch.cuda.empty_cache()  # Clear GPU memory before starting the show process
