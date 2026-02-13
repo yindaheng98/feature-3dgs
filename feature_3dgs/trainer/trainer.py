@@ -8,6 +8,7 @@ from feature_3dgs import SemanticGaussianModel, FeatureCamera
 class SemanticTrainer(TrainerWrapper):
     def __init__(
             self,  base_trainer: AbstractTrainer,
+            semantic_lr=0.001,
             semantic_decoder_lr=0.0001,
             semantic_loss_weight=1.0,
             semantic_mask_mode="none",
@@ -15,7 +16,8 @@ class SemanticTrainer(TrainerWrapper):
         super().__init__(base_trainer=base_trainer)
         model = self.model
         assert isinstance(model, SemanticGaussianModel), "SemanticTrainer's model must be a SemanticGaussianModel"
-        self.optimizer.add_param_group({"lr": semantic_decoder_lr, "params": model.get_decoder.parameters()})
+        self.optimizer.add_param_group({"lr": semantic_lr, "params": model._semantic_features, "name": "semantic"})
+        self.optimizer.add_param_group({"lr": semantic_decoder_lr, "params": model.get_decoder.parameters(), "name": "semantic_decoder"})
         self.semantic_loss_weight = semantic_loss_weight
         self.mask_mode = semantic_mask_mode
 
@@ -42,11 +44,13 @@ def SemanticTrainerWrapper(
         model: SemanticGaussianModel,
         scene_extent: float,
         *args,
+        semantic_lr=0.001,
         semantic_decoder_lr=0.0001,
         semantic_loss_weight=1.0,
         **kwargs) -> SemanticTrainer:
     return SemanticTrainer(
         base_trainer=base_trainer_constructor(model, scene_extent, *args, **kwargs),
+        semantic_lr=semantic_lr,
         semantic_decoder_lr=semantic_decoder_lr,
         semantic_loss_weight=semantic_loss_weight,
     )
