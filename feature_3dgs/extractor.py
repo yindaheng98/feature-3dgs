@@ -37,7 +37,6 @@ class FeatureCameraDataset(CameraDataset):
     def to(self, device) -> 'FeatureCameraDataset':
         self.cameras.to(device)
         self.extractor.to(device)
-        self.feature_map_cache = [(feature_map.to(device) if feature_map is not None else None) for feature_map in self.feature_map_cache]
         return self
 
     def __len__(self) -> int:
@@ -48,8 +47,8 @@ class FeatureCameraDataset(CameraDataset):
         feature_map = None
         if camera.ground_truth_image is not None:
             if self.feature_map_cache[idx] is None:
-                self.feature_map_cache[idx] = self.extractor(camera.ground_truth_image)
-            feature_map = self.feature_map_cache[idx]
+                self.feature_map_cache[idx] = self.extractor(camera.ground_truth_image).cpu()
+            feature_map = self.feature_map_cache[idx].to(camera.ground_truth_image.device)
         return FeatureCamera(*camera, feature_map=feature_map)
 
     @property

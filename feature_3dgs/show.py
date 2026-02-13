@@ -15,7 +15,6 @@ def show_dataset(dataset, destination: str):
       2nd pass - transform each feature map with the fitted PCA and save the
                  visualisation to *destination*.
     """
-
     # ---- First pass: gather all features and fit PCA ----
     all_features = []
     print("Pass 1/2: collecting features for PCA fitting ...")
@@ -78,4 +77,7 @@ if __name__ == "__main__":
         name=args.name, source=args.source,
         embed_dim=args.embed_dim, device=args.device, **configs
     )
-    show_dataset(dataset, destination=args.destination)
+    del decoder
+    torch.cuda.empty_cache()  # Clear GPU memory before starting the show process
+    with torch.no_grad():
+        show_dataset(dataset, destination=args.destination)
