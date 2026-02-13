@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
-from feature_3dgs import NoopDecoder
+
+from feature_3dgs.decoder import NoopDecoder
+
 from .extractor import padding
 
 
