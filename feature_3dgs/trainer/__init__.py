@@ -1,1 +1,1 @@
-from .trainer import FeatureTrainer
+from .trainer import SemanticTrainer, SemanticTrainerWrapper
