@@ -1,6 +1,12 @@
 import os
+from typing import Tuple
+
+from feature_3dgs.extractor import AbstractFeatureExtractor
+from feature_3dgs.decoder import AbstractDecoder
+from feature_3dgs.registry import register_extractor_decoder
 
 from .extractor import DINOv3Extractor
+from .decoder import DINOv3CNNDecoder
 
 from dinov3.hub.backbones import (
     dinov3_convnext_tiny,
@@ -65,3 +71,23 @@ def DINOv3ConvNextExtractor(version: str = MODEL_DINOV3_CONVNEXTB, checkpoint_di
     else:
         model = MODEL_TO_FACTORY[version](pretrained=True)
     return DINOv3Extractor(model=model, n_layers=NUM_STAGES, patch_size=INPUT_PAD_SIZE)
+
+
+CONVNEXT_FEATURE_DIMS = {
+    MODEL_DINOV3_CONVNEXTT:  768,
+    MODEL_DINOV3_CONVNEXTS:  768,
+    MODEL_DINOV3_CONVNEXTB: 1024,
+    MODEL_DINOV3_CONVNEXTL: 1536,
+}
+
+# Register DINOv3 ConvNeXt + CNN decoder
+for version in MODELS:
+    def factory(embed_dim: int, checkpoint_dir="checkpoints") -> Tuple[AbstractFeatureExtractor, AbstractDecoder]:
+        extractor = DINOv3ConvNextExtractor(version, checkpoint_dir=checkpoint_dir)
+        decoder = DINOv3CNNDecoder(
+            in_channels=embed_dim,
+            out_channels=CONVNEXT_FEATURE_DIMS[version],
+            patch_size=INPUT_PAD_SIZE,
+        )
+        return extractor, decoder
+    register_extractor_decoder(version, factory)

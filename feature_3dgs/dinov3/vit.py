@@ -1,6 +1,12 @@
 import os
+from typing import Tuple
+
+from feature_3dgs.extractor import AbstractFeatureExtractor
+from feature_3dgs.decoder import AbstractDecoder
+from feature_3dgs.registry import register_extractor_decoder
 
 from .extractor import DINOv3Extractor
+from .decoder import DINOv3CNNDecoder
 
 from dinov3.hub.backbones import (
     dinov3_vits16,
@@ -12,15 +18,15 @@ from dinov3.hub.backbones import (
 )
 
 # Copy from https://github.com/facebookresearch/dinov3/blob/54694f7627fd815f62a5dcc82944ffa6153bbb76/notebooks/pca.ipynb
+PATCH_SIZE = 16
+IMAGENET_MEAN = (0.485, 0.456, 0.406)
+IMAGENET_STD = (0.229, 0.224, 0.225)
 MODEL_DINOV3_VITS = "dinov3_vits16"
 MODEL_DINOV3_VITSP = "dinov3_vits16plus"
 MODEL_DINOV3_VITB = "dinov3_vitb16"
 MODEL_DINOV3_VITL = "dinov3_vitl16"
 MODEL_DINOV3_VITHP = "dinov3_vith16plus"
 MODEL_DINOV3_VIT7B = "dinov3_vit7b16"
-PATCH_SIZE = 16
-IMAGENET_MEAN = (0.485, 0.456, 0.406)
-IMAGENET_STD = (0.229, 0.224, 0.225)
 MODEL_TO_NUM_LAYERS = {
     MODEL_DINOV3_VITS: 12,
     MODEL_DINOV3_VITSP: 12,
@@ -93,3 +99,26 @@ def DINOv3ViTExtractor(version: str = "dinov3_vitl16", checkpoint_dir: str = "ch
     else:
         model = MODEL_TO_FACTORY[version](pretrained=True)
     return DINOv3Extractor(model=model, n_layers=n_layers, patch_size=PATCH_SIZE)
+
+
+# Feature dimensions (D) for each backbone
+FEATURE_DIMS = {
+    MODEL_DINOV3_VITS:   384,
+    MODEL_DINOV3_VITSP:  384,
+    MODEL_DINOV3_VITB:   768,
+    MODEL_DINOV3_VITL:  1024,
+    MODEL_DINOV3_VITHP: 1280,
+    MODEL_DINOV3_VIT7B: 4096,
+}
+
+
+for version in MODELS:
+    def factory(embed_dim: int, checkpoint_dir="checkpoints") -> Tuple[AbstractFeatureExtractor, AbstractDecoder]:
+        extractor = DINOv3ViTExtractor(version, checkpoint_dir=checkpoint_dir)
+        decoder = DINOv3CNNDecoder(
+            in_channels=embed_dim,
+            out_channels=FEATURE_DIMS[version],
+            patch_size=PATCH_SIZE,
+        )
+        return extractor, decoder
+    register_extractor_decoder(version, factory)
