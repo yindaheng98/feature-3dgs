@@ -115,6 +115,9 @@ class FeatureGaussianModel(GaussianModel):
             cov3D_precomp=cov3D_precomp)
         rendered_image = viewpoint_camera.postprocess(viewpoint_camera, rendered_image)
 
+        if self.get_decoder is not None:
+            feature_map = self.get_decoder(feature_map)
+
         # Those Gaussians that were frustum culled or had a radius of 0 were not visible.
         # They will be excluded from value updates used in the splitting criteria.
         rendered_image = rendered_image.clamp(0, 1)
