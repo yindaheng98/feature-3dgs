@@ -2,10 +2,19 @@ from typing import Tuple
 
 from gaussian_splatting.dataset.colmap import colmap_init
 from gaussian_splatting.prepare import prepare_dataset
+from gaussian_splatting.trainer import (
+    AbstractTrainer,
+    Trainer,
+    OpacityResetDensificationTrainer,
+    CameraTrainer,
+    OpacityResetDensificationCameraTrainer,
+)
+from gaussian_splatting.trainer.extensions import ScaleRegularizeTrainerWrapper
 from .extractor import FeatureCameraDataset
 from .decoder import AbstractFeatureDecoder
 from .registry import build_extractor_decoder
 from .gaussian_model import SemanticGaussianModel
+from .trainer.trainer import SemanticTrainerWrapper
 
 
 def prepare_dataset_and_decoder(
@@ -35,3 +44,31 @@ def prepare_gaussians(decoder: AbstractFeatureDecoder, sh_degree: int, source: s
     gaussians = (SemanticGaussianModel if not trainable_camera else CameraTrainableSemanticGaussianModel)(sh_degree, decoder=decoder).to(device)
     gaussians.load_ply(load_ply, load_semantic=load_semantic) if load_ply else colmap_init(gaussians, source)
     return gaussians
+
+
+modes = {
+    "base": Trainer,
+    "densify": OpacityResetDensificationTrainer,
+    "camera": CameraTrainer,
+    "camera-densify": OpacityResetDensificationCameraTrainer,
+}
+
+
+def prepare_trainer(gaussians: SemanticGaussianModel, dataset: FeatureCameraDataset, mode: str, trainable_camera: bool = False, with_scale_reg=False, configs={}) -> AbstractTrainer:
+    constructor = lambda *args, **kwargs: SemanticTrainerWrapper(modes[mode], *args, **kwargs)
+    if with_scale_reg:
+        constructor = lambda *args, **kwargs: ScaleRegularizeTrainerWrapper(modes[mode], *args, **kwargs)
+    if trainable_camera:
+        trainer = constructor(
+            gaussians,
+            scene_extent=dataset.scene_extent(),
+            dataset=dataset,
+            **configs
+        )
+    else:
+        trainer = constructor(
+            gaussians,
+            scene_extent=dataset.scene_extent(),
+            **configs
+        )
+    return trainer
