@@ -30,8 +30,8 @@ def prepare_dataset_and_decoder(
     return dataset, decoder
 
 
-def prepare_gaussians(decoder: AbstractFeatureDecoder, sh_degree: int, source: str, device: str, trainable_camera: bool = False, load_ply: str = None) -> SemanticGaussianModel:
+def prepare_gaussians(decoder: AbstractFeatureDecoder, sh_degree: int, source: str, device: str, trainable_camera: bool = False, load_ply: str = None, load_semantic: bool = True) -> SemanticGaussianModel:
     from .gaussian_model import SemanticGaussianModel, CameraTrainableSemanticGaussianModel
     gaussians = (SemanticGaussianModel if not trainable_camera else CameraTrainableSemanticGaussianModel)(sh_degree, decoder=decoder).to(device)
-    gaussians.load_ply(load_ply) if load_ply else colmap_init(gaussians, source)
+    gaussians.load_ply(load_ply, load_semantic=load_semantic) if load_ply else colmap_init(gaussians, source)
     return gaussians

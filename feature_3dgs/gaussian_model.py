@@ -1,5 +1,5 @@
-from abc import ABC, abstractmethod
 import math
+import os
 import torch
 import torch.nn as nn
 from gaussian_splatting import GaussianModel, Camera, CameraTrainableGaussianModel
@@ -120,21 +120,20 @@ class SemanticGaussianModel(GaussianModel):
         super().create_from_pcd(points, colors)
         return self.init_semantic_features()
 
-    def create_from_3dgs(self, path: str):
-        super().load_ply(path)
-        return self.init_semantic_features()
-
     def save_ply(self, path: str):
         super().save_ply(path)
         semantic_features = self._semantic_features.detach()
         torch.save(semantic_features, path + '.semantic.pt')
         self._decoder.save(path + '.decoder.pt')
 
-    def load_ply(self, path: str):
+    def load_ply(self, path: str, load_semantic: bool = True):
         super().load_ply(path)
-        semantic_features = torch.load(path + '.semantic.pt').to(self._xyz.device)
-        self._semantic_features = nn.Parameter(semantic_features.requires_grad_(True))
-        self._decoder.load(path + '.decoder.pt')
+        if load_semantic:
+            semantic_features = torch.load(path + '.semantic.pt').to(self._xyz.device)
+            self._semantic_features = nn.Parameter(semantic_features.requires_grad_(True))
+            self._decoder.load(path + '.decoder.pt')
+        else:
+            self.init_semantic_features()
 
     def update_points_add(
         self,
