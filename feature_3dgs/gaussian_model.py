@@ -4,11 +4,11 @@ import torch
 import torch.nn as nn
 from gaussian_splatting import GaussianModel, Camera
 from feature_3dgs.diff_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
-from .decoder import AbstractDecoder
+from .decoder import AbstractFeatureDecoder
 
 
 class FeatureGaussianModel(GaussianModel):
-    def __init__(self, sh_degree: int, decoder: AbstractDecoder):
+    def __init__(self, sh_degree: int, decoder: AbstractFeatureDecoder):
         super(FeatureGaussianModel, self).__init__(sh_degree)
         self._semantic_features = torch.empty(0)
         self._decoder = decoder

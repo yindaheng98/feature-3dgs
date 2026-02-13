@@ -1,12 +1,12 @@
 import torch
 import torch.nn as nn
 
-from feature_3dgs.decoder import NoopDecoder
+from feature_3dgs.decoder import NoopFeatureDecoder
 
 from .extractor import padding
 
 
-class DINOv3CNNDecoder(NoopDecoder):
+class DINOv3CNNDecoder(NoopFeatureDecoder):
     """CNN-based decoder that mirrors DINOv3Extractor's spatial transformation.
 
     Takes a feature map with the same spatial size as the input image to

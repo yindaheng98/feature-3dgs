@@ -2,14 +2,14 @@ from abc import ABC, abstractmethod
 import torch
 
 
-class AbstractDecoder(ABC):
+class AbstractFeatureDecoder(ABC):
 
     @abstractmethod
     def __call__(self, feature_map: torch.Tensor) -> torch.Tensor:
         return feature_map
 
     @abstractmethod
-    def to(self, device) -> 'AbstractDecoder':
+    def to(self, device) -> 'AbstractFeatureDecoder':
         return self
 
     @abstractmethod
@@ -30,14 +30,14 @@ class AbstractDecoder(ABC):
         return 0
 
 
-class NoopDecoder(AbstractDecoder):
+class NoopFeatureDecoder(AbstractFeatureDecoder):
     def __init__(self, input_dim: int):
         self._input_dim = input_dim
 
     def __call__(self, feature_map: torch.Tensor) -> torch.Tensor:
         return feature_map
 
-    def to(self, device) -> 'AbstractDecoder':
+    def to(self, device) -> 'AbstractFeatureDecoder':
         return self
 
     def load(self, path: str) -> None:
