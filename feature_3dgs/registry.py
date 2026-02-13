@@ -1,6 +1,6 @@
 from typing import Tuple, Protocol
 
-from .dataset import AbstractFeatureExtractor
+from .extractor import AbstractFeatureExtractor
 from .decoder import AbstractDecoder
 
 
