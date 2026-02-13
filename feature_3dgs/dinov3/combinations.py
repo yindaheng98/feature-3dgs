@@ -5,11 +5,11 @@ from .convnext import DINOv3ConvNextExtractor, MODELS as CONVNEXT_MODELS, MODEL_
 
 
 def DINOv3ViTFeatureCameraDataset(cameras: CameraDataset, version: str = MODEL_DINOV3_VITS) -> FeatureCameraDataset:
-    return FeatureCameraDataset(cameras, feature_extractor=DINOv3ViTExtractor(version))
+    return FeatureCameraDataset(cameras, extractor=DINOv3ViTExtractor(version))
 
 
 def DINOv3ConvNextFeatureCameraDataset(cameras: CameraDataset, version: str = MODEL_DINOV3_CONVNEXTB) -> FeatureCameraDataset:
-    return FeatureCameraDataset(cameras, feature_extractor=DINOv3ConvNextExtractor(version))
+    return FeatureCameraDataset(cameras, extractor=DINOv3ConvNextExtractor(version))
 
 
 available_datasets = {

@@ -29,14 +29,14 @@ FeatureCamera.__new__.__defaults__ = (
 
 class FeatureCameraDataset(CameraDataset):
 
-    def __init__(self, cameras: CameraDataset, feature_extractor: AbstractFeatureExtractor):
+    def __init__(self, cameras: CameraDataset, extractor: AbstractFeatureExtractor):
         self.cameras = cameras
-        self.feature_extractor = feature_extractor
+        self.extractor = extractor
         self.feature_map_cache = [None] * len(cameras)
 
     def to(self, device) -> 'FeatureCameraDataset':
         self.cameras.to(device)
-        self.feature_extractor.to(device)
+        self.extractor.to(device)
         self.feature_map_cache = [(feature_map.to(device) if feature_map is not None else None) for feature_map in self.feature_map_cache]
         return self
 
@@ -48,7 +48,7 @@ class FeatureCameraDataset(CameraDataset):
         feature_map = None
         if camera.ground_truth_image is not None:
             if self.feature_map_cache[idx] is None:
-                self.feature_map_cache[idx] = self.feature_extractor(camera.ground_truth_image)
+                self.feature_map_cache[idx] = self.extractor(camera.ground_truth_image)
             feature_map = self.feature_map_cache[idx]
         return FeatureCamera(*camera, feature_map=feature_map)
 
