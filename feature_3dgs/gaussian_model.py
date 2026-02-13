@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 import math
 import torch
 import torch.nn as nn
-from gaussian_splatting import GaussianModel, Camera
+from gaussian_splatting import GaussianModel, Camera, CameraTrainableGaussianModel
 from feature_3dgs.diff_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
 from .decoder import AbstractFeatureDecoder
 
@@ -209,3 +209,8 @@ class SemanticGaussianModel(GaussianModel):
             return (attr == ref[~removed_mask, ...]).all()
         assert is_same_rest(semantic_features, self._semantic_features)
         self._semantic_features = semantic_features
+
+
+class CameraTrainableSemanticGaussianModel(SemanticGaussianModel):
+    def forward(self, camera: Camera):
+        return CameraTrainableGaussianModel.forward(self, camera)
