@@ -112,7 +112,7 @@ FEATURE_DIMS = {
 }
 
 
-for version in MODELS:
+def build_factory(version: str):
     def factory(embed_dim: int, checkpoint_dir="checkpoints") -> Tuple[AbstractFeatureExtractor, AbstractDecoder]:
         extractor = DINOv3ViTExtractor(version, checkpoint_dir=checkpoint_dir)
         decoder = DINOv3CNNDecoder(
@@ -121,4 +121,8 @@ for version in MODELS:
             patch_size=PATCH_SIZE,
         )
         return extractor, decoder
-    register_extractor_decoder(version, factory)
+    return factory
+
+
+for version in MODELS:
+    register_extractor_decoder(version, build_factory(version))

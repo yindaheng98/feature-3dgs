@@ -1,40 +1,28 @@
-from gaussian_splatting.prepare import basemodes, shliftmodes, colmap_init, prepare_trainer
-from gaussian_splatting.trainer.extensions import ScaleRegularizeTrainerWrapper
-from gaussian_splatting.dataset import CameraDataset
-from feature_3dgs import FeatureGaussian
-from feature_3dgs.trainer import FeatureTrainer
-from feature_3dgs.extractor import AbstractFeatureExtractor, MLPExtractor
+from typing import Tuple
 
-extractormodes= {
-    "base": MLPExtractor
-}
+from gaussian_splatting.prepare import prepare_dataset
+from feature_3dgs.extractor import FeatureCameraDataset
+from feature_3dgs.decoder import AbstractDecoder
+from feature_3dgs.registry import build_extractor_decoder
 
-def prepare_feature_gaussians(
-        sh_degree: int,
-        source: str,
-        device: str,
-        trainable_camera: bool = False,
-        load_ply: str = None
-) -> FeatureGaussian:
-    assert trainable_camera == False, "Camera trainable not implemented!"
-    gaussians = FeatureGaussian(sh_degree).to(device)
-    gaussians.load_ply(load_ply) if load_ply else colmap_init(gaussians, source)
-    return gaussians
 
-# TODO
-def prepare_feature_trainer(
-        gaussians: FeatureGaussian,
-        extractor: AbstractFeatureExtractor,
-        *args, **kwargs
-) -> FeatureTrainer:
-    trainer = prepare_trainer(gaussians=gaussians, *args, **kwargs)
-    feature_trainer = FeatureTrainer(base_trainer=trainer, extractor=extractor)
-    return feature_trainer
+def prepare_dataset_and_decoder(
+        name: str, source: str, device: str, embed_dim: int,
+        trainable_camera: bool = False, load_camera: str = None, load_mask=True, load_depth=True,
+        **kwargs
+) -> Tuple[FeatureCameraDataset, AbstractDecoder]:
+    """Prepare a FeatureCameraDataset and its corresponding decoder.
 
-# TODO
-def prepare_feature_extractor(mode: str = "base", load_path: str | None = None) -> AbstractFeatureExtractor:
-    if mode not in extractormodes.keys():
-        raise NotImplementedError(f"{mode} is not an implemented extractor mode.")
-    extractor = extractormodes[mode]()
-    extractor.load(load_path)
-    return extractor
+    This is a convenience function that chains together camera loading,
+    extractor/decoder construction, and dataset creation.
+    """
+    cameras = prepare_dataset(
+        source=source, device=device,
+        trainable_camera=trainable_camera, load_camera=load_camera,
+        load_mask=load_mask, load_depth=load_depth,
+    )
+    extractor, decoder = build_extractor_decoder(
+        name=name, embed_dim=embed_dim, **kwargs
+    )
+    dataset = FeatureCameraDataset(cameras, extractor=extractor).to(device)
+    return dataset, decoder
