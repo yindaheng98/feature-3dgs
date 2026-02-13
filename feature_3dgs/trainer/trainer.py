@@ -10,19 +10,31 @@ class SemanticTrainer(TrainerWrapper):
             self,  base_trainer: AbstractTrainer,
             semantic_decoder_lr=0.0001,
             semantic_loss_weight=1.0,
+            semantic_mask_mode="none",
     ):
         super().__init__(base_trainer=base_trainer)
         model = self.model
         assert isinstance(model, SemanticGaussianModel), "SemanticTrainer's model must be a SemanticGaussianModel"
         self.optimizer.add_param_group({"lr": semantic_decoder_lr, "params": model.get_decoder.parameters()})
         self.semantic_loss_weight = semantic_loss_weight
+        self.mask_mode = semantic_mask_mode
 
     def loss(self, out: dict, camera: FeatureCamera) -> torch.Tensor:
         loss = super().loss(out, camera)
         render = out['feature_map']
         gt = camera.feature_map
-        feature_loss = l1_loss(render, gt)
-        return loss + feature_loss * self.semantic_loss_weight
+        mask = camera.ground_truth_image_mask
+        match self.mask_mode:
+            case "none":
+                pass
+            case "ignore":
+                assert mask is not None, "Mask is required for 'ignore' mask policy"
+                render = render * mask.unsqueeze(0)
+                gt = gt * mask.unsqueeze(0)
+            case _:
+                raise ValueError(f"Unknown mask policy: {self.mask_mode}")
+        semantic_loss = l1_loss(render, gt)
+        return loss + semantic_loss * self.semantic_loss_weight
 
 
 def SemanticTrainerWrapper(
