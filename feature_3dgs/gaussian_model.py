@@ -135,10 +135,10 @@ class FeatureGaussianModel(GaussianModel):
             self,
             points: torch.Tensor,
             colors: torch.Tensor,
-            semantic_features_size: int,
+            semantic_embed_dim: int,
     ):
         super().create_from_pcd(points, colors)
-        semantic_features = torch.zeros((self._xyz.shape[0], semantic_features_size), dtype=torch.float, device=self._xyz.device)
+        semantic_features = torch.zeros((self._xyz.shape[0], semantic_embed_dim), dtype=torch.float, device=self._xyz.device)
         self._semantic_features = nn.Parameter(semantic_features.requires_grad_(True))
         return self
 

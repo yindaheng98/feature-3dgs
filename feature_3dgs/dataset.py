@@ -51,3 +51,7 @@ class FeatureCameraDataset(CameraDataset):
                 self.feature_map_cache[idx] = self.feature_extractor(camera.ground_truth_image)
             feature_map = self.feature_map_cache[idx]
         return FeatureCamera(*camera, feature_map=feature_map)
+
+    @property
+    def embed_dim(self) -> int:
+        return self[0].feature_map.shape[0]
