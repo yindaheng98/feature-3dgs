@@ -8,7 +8,7 @@ from .decoder import AbstractDecoder
 
 
 class FeatureGaussianModel(GaussianModel):
-    def __init__(self, sh_degree: int, decoder: AbstractDecoder = None):
+    def __init__(self, sh_degree: int, decoder: AbstractDecoder):
         super(FeatureGaussianModel, self).__init__(sh_degree)
         self._semantic_features = torch.empty(0)
         self._decoder = decoder
@@ -16,7 +16,7 @@ class FeatureGaussianModel(GaussianModel):
     def to(self, device):
         super().to(device)
         self._semantic_features = self._semantic_features.to(device)
-        self._decoder = self._decoder.to(device) if self._decoder is not None else None
+        self._decoder = self._decoder.to(device)
         return self
 
     @property
@@ -93,8 +93,7 @@ class FeatureGaussianModel(GaussianModel):
             cov3D_precomp=cov3D_precomp)
         rendered_image = viewpoint_camera.postprocess(viewpoint_camera, rendered_image)
 
-        if self.get_decoder is not None:
-            feature_map = self.get_decoder(feature_map)
+        feature_map = self.get_decoder(feature_map)
 
         # Those Gaussians that were frustum culled or had a radius of 0 were not visible.
         # They will be excluded from value updates used in the splitting criteria.
@@ -112,29 +111,30 @@ class FeatureGaussianModel(GaussianModel):
         }
         return out
 
-    def create_from_pcd(
-            self,
-            points: torch.Tensor,
-            colors: torch.Tensor,
-            semantic_embed_dim: int,
-    ):
-        super().create_from_pcd(points, colors)
-        semantic_features = torch.zeros((self._xyz.shape[0], semantic_embed_dim), dtype=torch.float, device=self._xyz.device)
+    def init_semantic_features(self):
+        semantic_features = torch.zeros((self._xyz.shape[0], self._decoder.input_dim), dtype=torch.float, device=self._xyz.device)
         self._semantic_features = nn.Parameter(semantic_features.requires_grad_(True))
         return self
+
+    def create_from_pcd(self, points: torch.Tensor, colors: torch.Tensor):
+        super().create_from_pcd(points, colors)
+        return self.init_semantic_features()
+
+    def create_from_3dgs(self, path: str):
+        super().load_ply(path)
+        return self.init_semantic_features()
 
     def save_ply(self, path: str):
         super().save_ply(path)
         semantic_features = self._semantic_features.detach()
         torch.save(semantic_features, path + '.semantic.pt')
-        self.get_decoder.save(path + '.decoder.pt') if self.get_decoder is not None else None
+        self._decoder.save(path + '.decoder.pt')
 
     def load_ply(self, path: str):
         super().load_ply(path)
         semantic_features = torch.load(path + '.semantic.pt').to(self._xyz.device)
         self._semantic_features = nn.Parameter(semantic_features.requires_grad_(True))
-        if self.get_decoder is not None:
-            self.get_decoder.load(path + '.decoder.pt')
+        self._decoder.load(path + '.decoder.pt')
 
     def update_points_add(
         self,
