@@ -2,19 +2,18 @@ from typing import Tuple
 
 from gaussian_splatting.dataset.colmap import colmap_init
 from gaussian_splatting.prepare import prepare_dataset
-from gaussian_splatting.trainer import (
-    AbstractTrainer,
-    Trainer,
-    OpacityResetDensificationTrainer,
-    CameraTrainer,
-    OpacityResetDensificationCameraTrainer,
-)
+from gaussian_splatting.trainer import AbstractTrainer
 from gaussian_splatting.trainer.extensions import ScaleRegularizeTrainerWrapper
 from .extractor import FeatureCameraDataset, TrainableFeatureCameraDataset
 from .decoder import AbstractFeatureDecoder
 from .registry import build_extractor_decoder
 from .gaussian_model import SemanticGaussianModel
-from .trainer.trainer import SemanticTrainerWrapper
+from .trainer import (
+    Trainer,
+    OpacityResetDensificationTrainer,
+    CameraTrainer,
+    OpacityResetDensificationCameraTrainer,
+)
 
 
 def prepare_dataset_and_decoder(
@@ -55,7 +54,8 @@ modes = {
 
 
 def prepare_trainer(gaussians: SemanticGaussianModel, dataset: FeatureCameraDataset, mode: str, trainable_camera: bool = False, with_scale_reg=False, configs={}) -> AbstractTrainer:
-    constructor = lambda *args, **kwargs: SemanticTrainerWrapper(modes[mode], *args, **kwargs)
+    # Copy from https://github.com/yindaheng98/gaussian-splatting/blob/master/gaussian_splatting/prepare.py#L74-L90
+    constructor = modes[mode]
     if with_scale_reg:
         constructor = lambda *args, **kwargs: ScaleRegularizeTrainerWrapper(modes[mode], *args, **kwargs)
     if trainable_camera:
