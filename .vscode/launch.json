@@ -77,6 +77,32 @@
             ]
         },
         {
+            "name": "train feature base",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "feature_3dgs.train",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--name",
+                "dinov3_vitl16",
+                "--embed_dim",
+                "16",
+                "-s",
+                "data/truck",
+                "-d",
+                "output/truck-semantic",
+                "-i",
+                "30000",
+                "--mode",
+                "base",
+                "-l",
+                "output/truck/point_cloud/iteration_30000/point_cloud.ply",
+                "--no_load_semantic",
+                "--empty_cache_every_step",
+            ]
+        },
+        {
             "name": "render",
             "type": "debugpy",
             "request": "launch",

@@ -69,7 +69,7 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--destination", required=True, type=str)
     parser.add_argument("--embed-dim", default=3, type=int)
     parser.add_argument("--device", default="cuda", type=str)
-    parser.add_argument("--dataset-cache-device", default="cpu", type=str)
+    parser.add_argument("--dataset_cache_device", default="cpu", type=str)
     parser.add_argument("-o", "--option", default=[], action='append', type=str)
     args = parser.parse_args()
 
