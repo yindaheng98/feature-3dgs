@@ -2,10 +2,10 @@ from functools import partial
 from typing import Callable
 
 from gaussian_splatting import GaussianModel
-from gaussian_splatting.trainer.densifier import AbstractDensifier, NoopDensifier, OpacityPrunerDensifierWrapper
+from gaussian_splatting.trainer.densifier import AbstractDensifier, OpacityPrunerDensifierWrapper
 
 from .densifier import SemanticSplitCloneDensifierWrapper
-from .trainer import SemanticDensificationTrainer
+from .trainer import SemanticDensificationTrainer, SemanticNoopDensifier
 
 
 def SemanticDensificationDensifierWrapper(
@@ -34,7 +34,7 @@ def BaseSemanticDensificationTrainer(
         model: GaussianModel, scene_extent: float,
         *args, **kwargs):
     return SemanticDensificationTrainerWrapper(
-        lambda model, *args, **kwargs: NoopDensifier(model),
+        lambda model, *args, **kwargs: SemanticNoopDensifier(model),
         model, scene_extent,
         *args, **kwargs,
     )

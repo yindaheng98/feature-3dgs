@@ -2,7 +2,8 @@ from dataclasses import dataclass
 
 import torch
 
-from gaussian_splatting.trainer.densifier import DensificationInstruct, DensificationTrainer
+from gaussian_splatting.trainer.densifier import DensificationInstruct, DensificationTrainer, NoopDensifier
+from feature_3dgs import SemanticGaussianModel
 
 
 @dataclass(frozen=True)
@@ -19,3 +20,13 @@ class SemanticDensificationTrainer(DensificationTrainer):
         **DensificationTrainer.optim_attr_names,
         "semantic": "semantic_features",
     }
+
+
+class SemanticNoopDensifier(NoopDensifier):
+
+    @property
+    def model(self) -> SemanticGaussianModel:
+        return super().model
+
+    def densify_and_prune(self, loss, out, camera, step: int) -> SemanticDensificationInstruct:
+        return SemanticDensificationInstruct()
