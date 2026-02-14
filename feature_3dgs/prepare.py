@@ -10,7 +10,7 @@ from gaussian_splatting.trainer import (
     OpacityResetDensificationCameraTrainer,
 )
 from gaussian_splatting.trainer.extensions import ScaleRegularizeTrainerWrapper
-from .extractor import FeatureCameraDataset
+from .extractor import FeatureCameraDataset, TrainableFeatureCameraDataset
 from .decoder import AbstractFeatureDecoder
 from .registry import build_extractor_decoder
 from .gaussian_model import SemanticGaussianModel
@@ -35,7 +35,7 @@ def prepare_dataset_and_decoder(
     extractor, decoder = build_extractor_decoder(
         name=name, embed_dim=embed_dim, **kwargs
     )
-    dataset = FeatureCameraDataset(cameras, extractor=extractor, cache_device=dataset_cache_device).to(device)
+    dataset = (FeatureCameraDataset if not trainable_camera else TrainableFeatureCameraDataset)(cameras=cameras, extractor=extractor, cache_device=dataset_cache_device).to(device)
     return dataset, decoder
 
 
