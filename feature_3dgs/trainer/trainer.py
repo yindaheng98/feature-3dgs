@@ -1,7 +1,7 @@
 from typing import Callable
 import torch
 from gaussian_splatting.utils import l1_loss
-from gaussian_splatting.trainer import TrainerWrapper, AbstractTrainer
+from gaussian_splatting.trainer import TrainerWrapper, AbstractTrainer, BaseTrainer
 from gaussian_splatting import Camera
 from feature_3dgs import SemanticGaussianModel
 
@@ -54,4 +54,22 @@ def SemanticTrainerWrapper(
         semantic_lr=semantic_lr,
         semantic_decoder_lr=semantic_decoder_lr,
         semantic_loss_weight=semantic_loss_weight,
+    )
+
+
+def BaseSemanticTrainer(
+        model: SemanticGaussianModel,
+        scene_extent: float,
+        semantic_lr=0.001,
+        semantic_decoder_lr=0.0001,
+        semantic_loss_weight=1.0,
+        *args, **kwargs) -> SemanticTrainer:
+    return SemanticTrainerWrapper(
+        lambda model, *args, **kwargs: BaseTrainer(model, scene_extent, *args, **kwargs),
+        model=model,
+        scene_extent=scene_extent,
+        semantic_lr=semantic_lr,
+        semantic_decoder_lr=semantic_decoder_lr,
+        semantic_loss_weight=semantic_loss_weight,
+        *args, **kwargs,
     )
