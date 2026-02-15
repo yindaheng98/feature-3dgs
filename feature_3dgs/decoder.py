@@ -86,9 +86,6 @@ class NoopFeatureDecoder(AbstractFeatureDecoder):
     def postprocess(self, feature_map: torch.Tensor) -> torch.Tensor:
         return feature_map
 
-    def __call__(self, feature_map: torch.Tensor) -> torch.Tensor:
-        return feature_map
-
     def to(self, device) -> 'AbstractFeatureDecoder':
         return self
 
