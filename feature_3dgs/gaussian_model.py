@@ -24,6 +24,18 @@ class SemanticGaussianModel(GaussianModel):
         return self._semantic_features
 
     @property
+    def get_aligned_semantic_features(self):
+        """Per-Gaussian features transformed to the extractor's feature space.
+
+        Applies the decoder's pointwise transform_feature (no spatial
+        post-processing) so the result is aligned with the extractor output.
+
+        Returns:
+            (N, C_out) tensor in the extractor's feature space.
+        """
+        return self._decoder.transform_features(self._semantic_features)
+
+    @property
     def get_decoder(self):
         return self._decoder
 
