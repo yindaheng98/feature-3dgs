@@ -57,18 +57,10 @@ def prepare_trainer(gaussians: SemanticGaussianModel, dataset: FeatureCameraData
     # Copy from https://github.com/yindaheng98/gaussian-splatting/blob/master/gaussian_splatting/prepare.py#L74-L90
     constructor = modes[mode]
     if with_scale_reg:
-        constructor = lambda *args, **kwargs: ScaleRegularizeTrainerWrapper(modes[mode], *args, **kwargs)
-    if trainable_camera:
-        trainer = constructor(
-            gaussians,
-            scene_extent=dataset.scene_extent(),
-            dataset=dataset,
-            **configs
-        )
-    else:
-        trainer = constructor(
-            gaussians,
-            scene_extent=dataset.scene_extent(),
-            **configs
-        )
+        constructor = lambda model, dataset, **configs: ScaleRegularizeTrainerWrapper(modes[mode], model, dataset, **configs)
+    trainer = constructor(
+        gaussians,
+        dataset=dataset,
+        **configs
+    )
     return trainer

@@ -4,6 +4,7 @@ from typing import Callable
 import torch
 
 from gaussian_splatting import GaussianModel
+from gaussian_splatting.dataset import CameraDataset
 from gaussian_splatting.trainer.densifier import SplitCloneDensifier, AbstractDensifier
 from feature_3dgs import SemanticGaussianModel
 
@@ -52,7 +53,7 @@ class SemanticSplitCloneDensifier(SplitCloneDensifier):
 def SemanticSplitCloneDensifierWrapper(
         base_densifier_constructor: Callable[..., AbstractDensifier],
         model: GaussianModel,
-        scene_extent: float,
+        dataset: CameraDataset,
         *args,
         densify_from_iter=500,
         densify_until_iter=15000,
@@ -61,10 +62,10 @@ def SemanticSplitCloneDensifierWrapper(
         densify_percent_dense=0.01,
         densify_percent_too_big=0.8,
         densify_limit_n=None,
-        **kwargs):
+        **configs):
     return SemanticSplitCloneDensifier(
-        base_densifier_constructor(model, scene_extent, *args, **kwargs),
-        scene_extent,
+        base_densifier_constructor(model, dataset, *args, **configs),
+        dataset,
         densify_from_iter=densify_from_iter,
         densify_until_iter=densify_until_iter,
         densify_interval=densify_interval,
@@ -77,10 +78,10 @@ def SemanticSplitCloneDensifierWrapper(
 
 def SemanticSplitCloneDensifierTrainerWrapper(
         base_densifier_constructor: Callable[..., AbstractDensifier],
-        model: GaussianModel, scene_extent: float,
-        *args, **kwargs):
+        model: GaussianModel, dataset: CameraDataset,
+        *args, **configs):
     return SemanticDensificationTrainer.from_densifier_constructor(
         partial(SemanticSplitCloneDensifierWrapper, base_densifier_constructor),
-        model, scene_extent,
-        *args, **kwargs,
+        model, dataset,
+        *args, **configs,
     )

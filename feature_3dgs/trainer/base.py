@@ -1,5 +1,5 @@
 from gaussian_splatting import GaussianModel, CameraTrainableGaussianModel
-from gaussian_splatting.dataset import TrainableCameraDataset
+from gaussian_splatting.dataset import CameraDataset, TrainableCameraDataset
 from gaussian_splatting.trainer.camera_trainable import CameraTrainerWrapper
 from gaussian_splatting.trainer.depth import DepthTrainer, DepthTrainerWrapper
 
@@ -9,27 +9,27 @@ from .densifier import BaseSemanticDensificationTrainer
 
 def BaseCameraTrainer(
         model: CameraTrainableGaussianModel,
-        scene_extent: float,
         dataset: TrainableCameraDataset,
-        *args, **kwargs):
+        **configs):
     return CameraTrainerWrapper(
-        lambda model, scene_extent, dataset, *args, **kwargs: BaseTrainer(model, scene_extent, *args, **kwargs),
-        model, scene_extent, dataset, *args, **kwargs
+        lambda model, dataset, **configs: BaseTrainer(model, dataset, **configs),
+        model, dataset, **configs
     )
 
 
-def BaseDepthTrainer(model: GaussianModel, scene_extent: float, *args, **kwargs) -> DepthTrainer:
-    return DepthTrainerWrapper(BaseTrainer, model, scene_extent, *args, **kwargs)
+def BaseDepthTrainer(model: GaussianModel, dataset: CameraDataset, **configs) -> DepthTrainer:
+    return DepthTrainerWrapper(BaseTrainer, model, dataset, **configs)
 
 
 def BaseDensificationTrainer(
         model: GaussianModel,
-        scene_extent: float,
+        dataset: CameraDataset,
         semantic_lr: float = 0.001,
         semantic_decoder_lr: float = 0.0001,
         semantic_loss_weight: float = 1,
-        *args, **kwargs) -> BaseSemanticDensificationTrainer:
+        **configs):
     return SemanticTrainerWrapper(
-        lambda model, scene_extent, dataset, *args, **kwargs: BaseSemanticDensificationTrainer(model, scene_extent, *args, **kwargs),
-        model, scene_extent, semantic_lr=semantic_lr, semantic_decoder_lr=semantic_decoder_lr, semantic_loss_weight=semantic_loss_weight,
+        lambda model, dataset, **configs: BaseSemanticDensificationTrainer(model, dataset, **configs),
+        model, dataset, semantic_lr=semantic_lr, semantic_decoder_lr=semantic_decoder_lr, semantic_loss_weight=semantic_loss_weight,
+        **configs
     )

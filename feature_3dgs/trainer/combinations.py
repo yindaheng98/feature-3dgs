@@ -1,43 +1,42 @@
 from gaussian_splatting import GaussianModel, CameraTrainableGaussianModel
-from gaussian_splatting.dataset import TrainableCameraDataset
+from gaussian_splatting.dataset import CameraDataset, TrainableCameraDataset
 from gaussian_splatting.trainer.camera_trainable import CameraTrainerWrapper, BaseCameraTrainer
 from gaussian_splatting.trainer.depth import DepthTrainerWrapper
 from gaussian_splatting.trainer.opacity_reset import OpacityResetTrainerWrapper
 
-from .densifier import BaseSemanticDensificationTrainer as BaseDensificationTrainer
-from .base import BaseCameraTrainer, BaseDepthTrainer
+from .base import BaseCameraTrainer, BaseDepthTrainer, BaseDensificationTrainer
 
 # Copy from https://github.com/yindaheng98/gaussian-splatting/blob/a26955eb92af3094e49e0fbe1678ea6c5c86d5ed/gaussian_splatting/trainer/combinations.py#L10-L39
 
 # Camera trainer
 
 
-def DepthCameraTrainer(model: GaussianModel, scene_extent: float, dataset: TrainableCameraDataset, *args, **kwargs):
-    return DepthTrainerWrapper(BaseCameraTrainer, model, scene_extent, dataset, *args, **kwargs)
+def DepthCameraTrainer(model: GaussianModel, dataset: TrainableCameraDataset, **configs):
+    return DepthTrainerWrapper(BaseCameraTrainer, model, dataset, **configs)
 
 
 # Densification trainers
 
 
-def BaseOpacityResetDensificationTrainer(model: GaussianModel, scene_extent: float, *args, **kwargs):
-    return OpacityResetTrainerWrapper(BaseDensificationTrainer, model, scene_extent, *args, **kwargs)
+def BaseOpacityResetDensificationTrainer(model: GaussianModel, dataset: CameraDataset, **configs):
+    return OpacityResetTrainerWrapper(BaseDensificationTrainer, model, dataset, **configs)
 
 
-def DepthOpacityResetDensificationTrainer(model: GaussianModel, scene_extent: float, *args, **kwargs):
-    return DepthTrainerWrapper(BaseOpacityResetDensificationTrainer, model, scene_extent, *args, **kwargs)
+def DepthOpacityResetDensificationTrainer(model: GaussianModel, dataset: CameraDataset, **configs):
+    return DepthTrainerWrapper(BaseOpacityResetDensificationTrainer, model, dataset, **configs)
 
 
-def BaseOpacityResetDensificationCameraTrainer(model: CameraTrainableGaussianModel, scene_extent: float, dataset: TrainableCameraDataset, *args, **kwargs):
+def BaseOpacityResetDensificationCameraTrainer(model: CameraTrainableGaussianModel, dataset: TrainableCameraDataset, **configs):
     return CameraTrainerWrapper(
-        lambda model, scene_extent, dataset, *args, **kwargs: BaseOpacityResetDensificationTrainer(model, scene_extent, *args, **kwargs),
-        model, scene_extent, dataset, *args, **kwargs
+        lambda model, dataset, **configs: BaseOpacityResetDensificationTrainer(model, dataset, **configs),
+        model, dataset, **configs
     )
 
 
-def DepthOpacityResetDensificationCameraTrainer(model: CameraTrainableGaussianModel, scene_extent: float, dataset: TrainableCameraDataset, *args, **kwargs):
+def DepthOpacityResetDensificationCameraTrainer(model: CameraTrainableGaussianModel, dataset: TrainableCameraDataset, **configs):
     return CameraTrainerWrapper(
-        lambda model, scene_extent, dataset, *args, **kwargs: DepthOpacityResetDensificationTrainer(model, scene_extent, *args, **kwargs),
-        model, scene_extent, dataset, *args, **kwargs
+        lambda model, dataset, **configs: DepthOpacityResetDensificationTrainer(model, dataset, **configs),
+        model, dataset, **configs
     )
 
 

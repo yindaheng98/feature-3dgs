@@ -38,7 +38,7 @@ if os.name == 'nt':
 
 setup(
     name="feature_3dgs",
-    version='0.0.1',
+    version='0.1.0',
     author='yindaheng98',
     author_email='yindaheng98@gmail.com',
     url='https://github.com/yindaheng98/gaussian-splatting',
@@ -73,7 +73,7 @@ setup(
         'opencv-python',
         'pillow',
         'open3d',
-        'gaussian-splatting < 2.3.0',
+        'gaussian-splatting >= 2.3.0',
         'scikit-learn',
     ]
 )
