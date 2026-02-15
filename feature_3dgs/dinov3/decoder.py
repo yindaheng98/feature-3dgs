@@ -31,7 +31,7 @@ class DINOv3CNNDecoder(NoopFeatureDecoder):
                           that the two can be compared directly.
             patch_size:   Patch size used by the paired DINOv3Extractor.
         """
-        super().__init__(input_dim=in_channels)
+        super().__init__(embed_dim=in_channels)
         self.patch_size = patch_size
         # Core learnable layer: map each (in_channels, patch_size, patch_size)
         # patch to a single (out_channels,) pixel.

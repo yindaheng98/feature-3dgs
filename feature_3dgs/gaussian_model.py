@@ -112,7 +112,7 @@ class SemanticGaussianModel(GaussianModel):
         return out
 
     def init_semantic_features(self):
-        semantic_features = torch.zeros((self._xyz.shape[0], self._decoder.input_dim), dtype=torch.float, device=self._xyz.device)
+        semantic_features = torch.zeros((self._xyz.shape[0], self._decoder.embed_dim), dtype=torch.float, device=self._xyz.device)
         self._semantic_features = nn.Parameter(semantic_features.requires_grad_(True))
         return self
 

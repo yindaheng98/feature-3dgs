@@ -26,13 +26,13 @@ class AbstractFeatureDecoder(ABC):
 
     @property
     @abstractmethod
-    def input_dim(self) -> int:
+    def embed_dim(self) -> int:
         return 0
 
 
 class NoopFeatureDecoder(AbstractFeatureDecoder):
-    def __init__(self, input_dim: int):
-        self._input_dim = input_dim
+    def __init__(self, embed_dim: int):
+        self._embed_dim = embed_dim
 
     def __call__(self, feature_map: torch.Tensor) -> torch.Tensor:
         return feature_map
@@ -50,5 +50,5 @@ class NoopFeatureDecoder(AbstractFeatureDecoder):
         return []
 
     @property
-    def input_dim(self) -> int:
-        return self._input_dim
+    def embed_dim(self) -> int:
+        return self._embed_dim
