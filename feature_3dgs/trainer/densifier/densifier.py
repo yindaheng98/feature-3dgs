@@ -3,10 +3,8 @@ from typing import Callable
 
 import torch
 
-from gaussian_splatting import GaussianModel
-from gaussian_splatting.dataset import CameraDataset
 from gaussian_splatting.trainer.densifier import SplitCloneDensifier, AbstractDensifier
-from feature_3dgs import SemanticGaussianModel
+from feature_3dgs import SemanticGaussianModel, FeatureCameraDataset
 
 from .trainer import SemanticDensificationInstruct, SemanticDensificationTrainer
 
@@ -52,8 +50,8 @@ class SemanticSplitCloneDensifier(SplitCloneDensifier):
 
 def SemanticSplitCloneDensifierWrapper(
         base_densifier_constructor: Callable[..., AbstractDensifier],
-        model: GaussianModel,
-        dataset: CameraDataset,
+        model: SemanticGaussianModel,
+        dataset: FeatureCameraDataset,
         *args,
         densify_from_iter=500,
         densify_until_iter=15000,
@@ -78,7 +76,7 @@ def SemanticSplitCloneDensifierWrapper(
 
 def SemanticSplitCloneDensifierTrainerWrapper(
         base_densifier_constructor: Callable[..., AbstractDensifier],
-        model: GaussianModel, dataset: CameraDataset, *args,
+        model: SemanticGaussianModel, dataset: FeatureCameraDataset, *args,
         **configs):
     return SemanticDensificationTrainer.from_densifier_constructor(
         partial(SemanticSplitCloneDensifierWrapper, base_densifier_constructor),

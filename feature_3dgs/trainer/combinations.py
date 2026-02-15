@@ -1,8 +1,8 @@
-from gaussian_splatting import GaussianModel, CameraTrainableGaussianModel
-from gaussian_splatting.dataset import CameraDataset, TrainableCameraDataset
 from gaussian_splatting.trainer.camera_trainable import CameraTrainerWrapper, BaseCameraTrainer
 from gaussian_splatting.trainer.depth import DepthTrainerWrapper
 from gaussian_splatting.trainer.opacity_reset import OpacityResetTrainerWrapper
+from feature_3dgs import SemanticGaussianModel, CameraTrainableSemanticGaussianModel
+from feature_3dgs import FeatureCameraDataset, TrainableFeatureCameraDataset
 
 from .base import BaseCameraTrainer, BaseDepthTrainer, BaseDensificationTrainer
 
@@ -11,29 +11,29 @@ from .base import BaseCameraTrainer, BaseDepthTrainer, BaseDensificationTrainer
 # Camera trainer
 
 
-def DepthCameraTrainer(model: GaussianModel, dataset: TrainableCameraDataset, **configs):
+def DepthCameraTrainer(model: SemanticGaussianModel, dataset: TrainableFeatureCameraDataset, **configs):
     return DepthTrainerWrapper(BaseCameraTrainer, model, dataset, **configs)
 
 
 # Densification trainers
 
 
-def BaseOpacityResetDensificationTrainer(model: GaussianModel, dataset: CameraDataset, **configs):
+def BaseOpacityResetDensificationTrainer(model: SemanticGaussianModel, dataset: FeatureCameraDataset, **configs):
     return OpacityResetTrainerWrapper(BaseDensificationTrainer, model, dataset, **configs)
 
 
-def DepthOpacityResetDensificationTrainer(model: GaussianModel, dataset: CameraDataset, **configs):
+def DepthOpacityResetDensificationTrainer(model: SemanticGaussianModel, dataset: FeatureCameraDataset, **configs):
     return DepthTrainerWrapper(BaseOpacityResetDensificationTrainer, model, dataset, **configs)
 
 
-def BaseOpacityResetDensificationCameraTrainer(model: CameraTrainableGaussianModel, dataset: TrainableCameraDataset, **configs):
+def BaseOpacityResetDensificationCameraTrainer(model: CameraTrainableSemanticGaussianModel, dataset: TrainableFeatureCameraDataset, **configs):
     return CameraTrainerWrapper(
         lambda model, dataset, **configs: BaseOpacityResetDensificationTrainer(model, dataset, **configs),
         model, dataset, **configs
     )
 
 
-def DepthOpacityResetDensificationCameraTrainer(model: CameraTrainableGaussianModel, dataset: TrainableCameraDataset, **configs):
+def DepthOpacityResetDensificationCameraTrainer(model: CameraTrainableSemanticGaussianModel, dataset: TrainableFeatureCameraDataset, **configs):
     return CameraTrainerWrapper(
         lambda model, dataset, **configs: DepthOpacityResetDensificationTrainer(model, dataset, **configs),
         model, dataset, **configs

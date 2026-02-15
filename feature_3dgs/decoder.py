@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import torch
+from .extractor import FeatureCameraDataset
 
 
 class AbstractFeatureDecoder(ABC):
@@ -23,6 +24,11 @@ class AbstractFeatureDecoder(ABC):
     @abstractmethod
     def parameters(self):
         return []
+
+    @abstractmethod
+    def init(self, dataset: FeatureCameraDataset):
+        """Initialise the decoder with a dataset, if necessary. Called once before training starts."""
+        pass
 
     @property
     @abstractmethod

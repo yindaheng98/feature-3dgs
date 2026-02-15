@@ -1,15 +1,15 @@
 from typing import Callable
 import torch
 from gaussian_splatting.utils import l1_loss
-from gaussian_splatting.dataset import CameraDataset
 from gaussian_splatting.trainer import TrainerWrapper, AbstractTrainer, BaseTrainer
 from gaussian_splatting import Camera
-from feature_3dgs import SemanticGaussianModel
+from feature_3dgs import SemanticGaussianModel, FeatureCameraDataset
 
 
 class SemanticTrainer(TrainerWrapper):
     def __init__(
             self,  base_trainer: AbstractTrainer,
+            dataset: FeatureCameraDataset,
             semantic_lr=0.001,
             semantic_decoder_lr=0.0001,
             semantic_loss_weight=1.0,
@@ -19,6 +19,7 @@ class SemanticTrainer(TrainerWrapper):
         model = self.model
         assert isinstance(model, SemanticGaussianModel), "SemanticTrainer's model must be a SemanticGaussianModel"
         self.optimizer.add_param_group({"lr": semantic_lr, "params": model._semantic_features, "name": "semantic"})
+        model.get_decoder.init(dataset)  # Init decoder before adding its parameters to the optimizer
         self.optimizer.add_param_group({"lr": semantic_decoder_lr, "params": model.get_decoder.parameters(), "name": "semantic_decoder"})
         self.semantic_loss_weight = semantic_loss_weight
         self.mask_mode = semantic_mask_mode
@@ -44,7 +45,7 @@ class SemanticTrainer(TrainerWrapper):
 def SemanticTrainerWrapper(
         base_trainer_constructor: Callable[..., AbstractTrainer],
         model: SemanticGaussianModel,
-        dataset: CameraDataset,
+        dataset: FeatureCameraDataset,
         *args,
         semantic_lr=0.001,
         semantic_decoder_lr=0.0001,
@@ -52,6 +53,7 @@ def SemanticTrainerWrapper(
         **configs) -> SemanticTrainer:
     return SemanticTrainer(
         base_trainer=base_trainer_constructor(model, dataset, *args, **configs),
+        dataset=dataset,
         semantic_lr=semantic_lr,
         semantic_decoder_lr=semantic_decoder_lr,
         semantic_loss_weight=semantic_loss_weight,
@@ -60,7 +62,7 @@ def SemanticTrainerWrapper(
 
 def BaseSemanticTrainer(
         model: SemanticGaussianModel,
-        dataset: CameraDataset,
+        dataset: FeatureCameraDataset,
         semantic_lr=0.001,
         semantic_decoder_lr=0.0001,
         semantic_loss_weight=1.0,
