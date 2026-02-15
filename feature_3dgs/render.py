@@ -1,132 +1,131 @@
 import os
-from typing import Tuple
+from typing import List, Tuple
+import torch
+import torchvision
+from sklearn.decomposition import PCA
 from tqdm import tqdm
-import tifffile
-import torch, torchvision
-import torch.nn.functional as F
-import numpy as np
-from matplotlib import pyplot as plt
-from PIL import Image
-from gaussian_splatting.utils import psnr, ssim, unproject
-from gaussian_splatting.utils.lpipsPyTorch import lpips
-from gaussian_splatting.dataset import CameraDataset
-from feature_3dgs.prepare import prepare_feature_dataset, prepare_feature_gaussians
-from feature_3dgs import FeatureGaussian
-from feature_3dgs.decoder import AbstractDecoder
+from feature_3dgs import SemanticGaussianModel, get_available_extractor_decoders
+from feature_3dgs.extractor import FeatureCameraDataset
+from feature_3dgs.prepare import prepare_dataset_and_decoder, prepare_gaussians
 
-# TODO: add decoder
+
 def prepare_rendering(
-        sh_degree: int,
-        source: str,
-        device: str,
-        trainable_camera: bool = False,
-        load_ply: str = None,
-        load_camera: str = None,
-        load_mask=True,
-        load_depth=True
-) -> Tuple[CameraDataset, FeatureGaussian]:
-    dataset = prepare_feature_dataset(
-                source=source,
-                device=device,
-                trainable_camera=trainable_camera,
-                load_camera=load_camera,
-                load_mask=load_mask,
-                load_depth=load_depth
-              )
-    gaussians = prepare_feature_gaussians(
-                    sh_degree=sh_degree,
-                    source=source,
-                    device=device,
-                    trainable_camera=trainable_camera,
-                    load_ply=load_ply
-                )
+        name: str, sh_degree: int, source: str, embed_dim: int, device: str, dataset_cache_device: str = None,
+        trainable_camera: bool = False, load_ply: str = None, load_camera: str = None,
+        load_mask=True, extractor_configs={}) -> Tuple[FeatureCameraDataset, SemanticGaussianModel]:
+    dataset, decoder = prepare_dataset_and_decoder(
+        name=name, source=source, embed_dim=embed_dim, device=device, dataset_cache_device=dataset_cache_device,
+        trainable_camera=trainable_camera, load_camera=load_camera,
+        load_mask=load_mask, load_depth=False, configs=extractor_configs)
+    gaussians = prepare_gaussians(
+        decoder=decoder, sh_degree=sh_degree, source=source, device=device,
+        trainable_camera=trainable_camera, load_ply=load_ply)
     return dataset, gaussians
 
-def build_pcd(color: torch.Tensor, invdepth: torch.Tensor, mask: torch.Tensor, FoVx, FoVy) -> torch.Tensor:
-    assert color.shape[-2:] == invdepth.shape[-2:], ValueError("Size of depth map should match color image")
-    xyz = unproject(1 / invdepth, FoVx, FoVy)
-    color = color.permute(1, 2, 0)
-    import open3d as o3d
-    pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(xyz[mask, ...].cpu().numpy())
-    pcd.colors = o3d.utility.Vector3dVector(color[mask, ...].cpu().numpy())
-    return pcd
 
-# TODO
-def build_pcd_rescale(
-        color: torch.Tensor, color_gt: torch.Tensor,
-        invdepth: torch.Tensor, invdepth_gt: torch.Tensor, mask: torch.Tensor,
-        FoVx, FoVy,
-        rescale_depth_gt=True
-) -> torch.Tensor:
-    invdepth_gt_rescale = invdepth_gt
-    mask = (mask > 1e-6)
-    if rescale_depth_gt:
-        mean_gt, std_gt = invdepth_gt.mean(), invdepth_gt.std()
-        mean, std = invdepth.mean(), invdepth.std()
-        invdepth_gt_rescale = (invdepth_gt - mean_gt) / std_gt * std + mean
-    pcd = build_pcd(color, invdepth, mask, FoVx, FoVy)
-    pcd_gt = build_pcd(color_gt, invdepth_gt_rescale, mask, FoVx, FoVy)
-    return pcd, pcd_gt, invdepth_gt_rescale
+def build_pca(
+    dataset: FeatureCameraDataset,
+    gaussians: SemanticGaussianModel = None,
+) -> Tuple[PCA, List[torch.Tensor]]:
+    """Collect feature maps and fit a PCA with 3 components.
 
-# TODO: add decoder
-# initialize Decoder in render
-def rendering(views: CameraDataset,
-              gaussians: FeatureGaussian,
-              render_path: str,
-              decoder: AbstractDecoder | None = None):
+    If *gaussians* is not ``None``, each view is rendered through the model and
+    the **rendered** feature maps are used for PCA fitting.
 
-    depth_path = os.path.join(render_path, "depth")
-    feature_path = os.paht.join(render_path, "features")
-    ground_truth_path = os.path.join(render_path, "ground_truth")
+    If *gaussians* is ``None``, feature maps are taken directly from the
+    dataset (i.e. extractor output).
 
-    for index, view in enumerate(tqdm(views, desc="rendering progress")):
-        render_package = gaussians(view)
-        gt = view.original_image[0 : 3, :, :]
-        gt_feature_map = view.semantic_feature.cuda()
-        torchvision.utils.save_image(render_package["render"],
-                                     os.pasth.join(render_path, '{0:05d}.png'.format(index)))
-        torchvision.utils.save_image(gt, os.path.join(ground_truth_path, '{0:05d}.png'.format(index)))
+    Returns:
+        pca: fitted ``PCA(n_components=3, whiten=True)``
+        feature_maps: list of ``(D, H, W)`` CPU tensors
+    """
+    all_features: List[torch.Tensor] = []
+    feature_maps: List[torch.Tensor] = []
 
-        depth = render_package["depth"]
-        scale_nor = depth.max().item()
-        depth_nor = depth / scale_nor
-        depth_tensor_squeezed = depth_nor.squeeze()  # Remove the channel dimension
-        colormap = plt.get_cmap('jet')
-        depth_colored = colormap(depth_tensor_squeezed.cpu().numpy())
-        depth_colored_rgb = depth_colored[:, :, :3]
-        depth_image = Image.fromarray((depth_colored_rgb * 255).astype(np.uint8))
-        output_path = os.path.join(depth_path, '{0:05d}.png'.format(index))
-        depth_image.save(output_path)
-        feature_map = F.interpolate(feature_map.unsqueeze(0), size=(gt_feature_map.shape[1], gt_feature_map.shape[2]), mode='bilinear', align_corners=True).squeeze(0) ###
-        if decoder is not None:
-            feature_map = decoder(feature_map)
+    desc = ("Rendering" if gaussians is not None else "Extracting") + " features for PCA fitting"
+    for idx in tqdm(range(len(dataset)), dynamic_ncols=True, desc=desc):
+        if gaussians is not None:
+            camera = dataset.cameras[idx]  # base camera – skip feature extraction
+            out = gaussians(camera)
+            feature_map = out["feature_map"].cpu()  # (D, H, W)
+        else:
+            feature_map = dataset[idx].custom_data['feature_map'].cpu()  # (D, H, W)
 
-        # TODO: visualize and save feature maps
+        feature_maps.append(feature_map)
+        D = feature_map.shape[0]
+        all_features.append(feature_map.reshape(D, -1).permute(1, 0))  # (H*W, D)
 
-        feature_map = feature_map.cpu().numpy().astype(np.float16)
-        torch.save(torch.tensor(feature_map).half(), os.path.join(feature_path, '{0:05d}_fmap_CxHxW.pt'.format(index)))
+    all_features_np = torch.cat(all_features, dim=0).numpy()  # (N_total, D)
+    del all_features
 
-# TODO: add decoder
+    pca = PCA(n_components=3, whiten=True)
+    pca.fit(all_features_np)
+    del all_features_np
+
+    return pca, feature_maps
+
+
+def colorize_feature_map(feature_map: torch.Tensor, pca: PCA) -> torch.Tensor:
+    """Project a single feature map to an RGB image via PCA + sigmoid.
+
+    Args:
+        feature_map: ``(D, H, W)`` tensor (CPU).
+        pca: a fitted ``PCA`` with ``n_components=3``.
+
+    Returns:
+        ``(H, W, 3)`` tensor with values in ``[0, 1]``.
+    """
+    D, H, W = feature_map.shape
+    features = feature_map.reshape(D, -1).permute(1, 0).cpu().numpy()  # (H*W, D)
+    projected = torch.from_numpy(pca.transform(features)).view(H, W, 3)
+    # Vibrant colours: multiply by 2 and pass through sigmoid
+    return torch.sigmoid(projected * 2.0).permute(2, 0, 1)
+
+
+def rendering(dataset: FeatureCameraDataset, gaussians: SemanticGaussianModel, save: str) -> None:
+    pca, gt_feature_maps = build_pca(dataset, gaussians=None)
+
+    os.makedirs(save, exist_ok=True)
+    dataset.save_cameras(os.path.join(save, "cameras.json"))
+    render_path = os.path.join(save, "renders")
+    gt_path = os.path.join(save, "gt")
+    os.makedirs(render_path, exist_ok=True)
+    os.makedirs(gt_path, exist_ok=True)
+    pbar = tqdm(dataset, dynamic_ncols=True, desc="Rendering")
+    for idx, camera in enumerate(pbar):
+        out = gaussians(camera)
+        rendering = colorize_feature_map(out["feature_map"], pca)  # (H, W, 3)
+        gt = colorize_feature_map(gt_feature_maps[idx], pca)  # (H, W, 3)
+        torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(idx) + "_semantic.png"))
+        torchvision.utils.save_image(gt, os.path.join(gt_path, '{0:05d}'.format(idx) + "_semantic.png"))
+
+
 if __name__ == "__main__":
     from argparse import ArgumentParser
     parser = ArgumentParser()
     parser.add_argument("--sh_degree", default=3, type=int)
+    parser.add_argument("--name", choices=get_available_extractor_decoders(), required=True, type=str)
+    parser.add_argument("--embed_dim", required=True, type=int)
     parser.add_argument("-s", "--source", required=True, type=str)
     parser.add_argument("-d", "--destination", required=True, type=str)
     parser.add_argument("-i", "--iteration", required=True, type=int)
     parser.add_argument("--load_camera", default=None, type=str)
     parser.add_argument("--mode", choices=["base", "camera"], default="base")
     parser.add_argument("--device", default="cuda", type=str)
+    parser.add_argument("--dataset_cache_device", default="cpu", type=str)
     parser.add_argument("--no_image_mask", action="store_true")
-    parser.add_argument("--no_rescale_depth_gt", action="store_true")
-    parser.add_argument("--save_depth_pcd", action="store_true")
+    parser.add_argument("-e", "--option_extractor", default=[], action='append', type=str)
     args = parser.parse_args()
     load_ply = os.path.join(args.destination, "point_cloud", "iteration_" + str(args.iteration), "point_cloud.ply")
     save = os.path.join(args.destination, "ours_{}".format(args.iteration))
+    extractor_configs = {o.split("=", 1)[0]: eval(o.split("=", 1)[1]) for o in args.option_extractor}
     with torch.no_grad():
         dataset, gaussians = prepare_rendering(
-            sh_degree=args.sh_degree, source=args.source, device=args.device, trainable_camera=args.mode == "camera",
+            name=args.name, sh_degree=args.sh_degree,
+            source=args.source, embed_dim=args.embed_dim,
+            device=args.device, dataset_cache_device=args.dataset_cache_device,
+            trainable_camera=args.mode == "camera",
             load_ply=load_ply, load_camera=args.load_camera,
-            load_mask=not args.no_image_mask, load_depth=args.save_depth_pcd)
-        rendering(dataset, gaussians, save, save_pcd=args.save_depth_pcd, rescale_depth_gt=not args.no_rescale_depth_gt)
+            load_mask=not args.no_image_mask,
+            extractor_configs=extractor_configs)
+        rendering(dataset, gaussians, save)

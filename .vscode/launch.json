@@ -110,7 +110,7 @@
             "name": "render",
             "type": "debugpy",
             "request": "launch",
-            "module": "feature_3dgs.render",
+            "module": "gaussian_splatting.render",
             "console": "integratedTerminal",
             "justMyCode": false,
             "args": [
@@ -123,6 +123,28 @@
             ]
         },
         {
+            "name": "render semantic",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "feature_3dgs.render",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--name",
+                "dinov3_vitl16",
+                "--embed_dim",
+                "16",
+                "-s",
+                "data/truck",
+                "-d",
+                "output/truck-semantic",
+                "-i",
+                "30000",
+                "--load_camera",
+                "output/truck-semantic/cameras.json",
+            ]
+        },
+        {
             "name": "show",
             "type": "debugpy",
             "request": "launch",
@@ -131,11 +153,11 @@
             "justMyCode": false,
             "args": [
                 "-n",
-                "dinov3_vith16plus",
+                "dinov3_vitl16",
                 "-s",
                 "data/truck",
                 "-d",
-                "output/truck-dinov3_vith16plus",
+                "output/truck-dinov3_vitl16",
             ]
         },
     ]
