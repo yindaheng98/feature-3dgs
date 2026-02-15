@@ -44,6 +44,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_iterations", nargs="+", type=int, default=[7000, 30000])
     parser.add_argument("--device", default="cuda", type=str)
     parser.add_argument("--dataset_cache_device", default="cpu", type=str)
+    parser.add_argument("--preload_dataset_cache", action="store_true")
     parser.add_argument("--empty_cache_every_step", action='store_true')
     parser.add_argument("-o", "--option", default=[], action='append', type=str)
     args = parser.parse_args()
@@ -60,6 +61,8 @@ if __name__ == "__main__":
         load_mask=not args.no_image_mask, load_depth=not args.no_depth_data, load_semantic=not args.no_load_semantic,
         configs=configs)
     dataset.save_cameras(os.path.join(args.destination, "cameras.json"))
+    if args.preload_dataset_cache:
+        dataset.preload_cache()
     torch.cuda.empty_cache()
     training(
         dataset=dataset, gaussians=gaussians, trainer=trainer,

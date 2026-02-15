@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import tqdm
 import torch
 from gaussian_splatting import Camera
 from gaussian_splatting.dataset import CameraDataset, TrainableCameraDataset
@@ -52,6 +53,12 @@ class FeatureCameraDataset(CameraDataset):
     @property
     def embed_dim(self) -> int:
         return self[0].custom_data['feature_map'].shape[0]
+
+    def preload_cache(self):
+        for idx in tqdm.tqdm(range(len(self.cameras)), desc="Preloading feature maps"):
+            _ = self[idx]
+            del _
+        del self.extractor
 
 
 class TrainableFeatureCameraDataset(FeatureCameraDataset):

@@ -22,6 +22,7 @@
                 "--mode",
                 "densify",
                 "--empty_cache_every_step",
+                "--preload_dataset_cache",
                 "-odensify_grad_threshold=0.0001",
             ]
         },
@@ -50,6 +51,7 @@
                 "--load_camera",
                 "output/truck-semantic/cameras.json",
                 "--empty_cache_every_step",
+                "--preload_dataset_cache",
             ]
         },
         {
@@ -73,6 +75,7 @@
                 "--mode",
                 "camera-densify",
                 "--empty_cache_every_step",
+                "--preload_dataset_cache",
                 "-odensify_grad_threshold=0.0001",
             ]
         },
@@ -100,6 +103,7 @@
                 "output/truck/point_cloud/iteration_30000/point_cloud.ply",
                 "--no_load_semantic",
                 "--empty_cache_every_step",
+                "--preload_dataset_cache",
             ]
         },
         {
