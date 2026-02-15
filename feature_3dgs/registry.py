@@ -23,11 +23,11 @@ def get_available_extractor_decoders() -> list[str]:
     return list(REGISTRY.keys())
 
 
-def build_extractor_decoder(name: str, embed_dim: int, *args, **kwargs) -> Tuple[AbstractFeatureExtractor, AbstractFeatureDecoder]:
+def build_extractor_decoder(name: str, embed_dim: int, *args, **configs) -> Tuple[AbstractFeatureExtractor, AbstractFeatureDecoder]:
     """Build an (Extractor, Decoder) pair by name."""
     if name not in REGISTRY:
         raise KeyError(
             f"Extractor-Decoder combination '{name}' not found. "
             f"Available: {get_available_extractor_decoders()}"
         )
-    return REGISTRY[name](embed_dim, *args, **kwargs)
+    return REGISTRY[name](embed_dim, *args, **configs)
