@@ -73,5 +73,7 @@ setup(
         'opencv-python',
         'pillow',
         'open3d',
+        'gaussian-splatting < 2.3.0',
+        'scikit-learn',
     ]
 )
