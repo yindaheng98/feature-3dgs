@@ -78,10 +78,10 @@ def SemanticSplitCloneDensifierWrapper(
 
 def SemanticSplitCloneDensifierTrainerWrapper(
         base_densifier_constructor: Callable[..., AbstractDensifier],
-        model: GaussianModel, dataset: CameraDataset,
-        *args, **configs):
+        model: GaussianModel, dataset: CameraDataset, *args,
+        **configs):
     return SemanticDensificationTrainer.from_densifier_constructor(
         partial(SemanticSplitCloneDensifierWrapper, base_densifier_constructor),
-        model, dataset,
-        *args, **configs,
+        model, dataset, *args,
+        **configs,
     )
