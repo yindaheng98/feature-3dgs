@@ -7,7 +7,7 @@ from feature_3dgs.decoder import NoopFeatureDecoder
 from .extractor import padding
 
 
-class DINOv3CNNDecoder(NoopFeatureDecoder):
+class DINOv3LinearAvgDecoder(NoopFeatureDecoder):
     """Decoder that aligns Gaussian features with DINOv3 extractor output.
 
     Two-stage pipeline:
@@ -69,7 +69,7 @@ class DINOv3CNNDecoder(NoopFeatureDecoder):
     # AbstractDecoder interface
     # ------------------------------------------------------------------
 
-    def to(self, device) -> 'DINOv3CNNDecoder':
+    def to(self, device) -> 'DINOv3LinearAvgDecoder':
         self.linear = self.linear.to(device)
         return self
 

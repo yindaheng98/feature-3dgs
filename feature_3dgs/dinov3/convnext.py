@@ -6,7 +6,7 @@ from feature_3dgs.decoder import AbstractFeatureDecoder
 from feature_3dgs.registry import register_extractor_decoder
 
 from .extractor import DINOv3Extractor
-from .decoder import DINOv3CNNDecoder
+from .decoder import DINOv3LinearAvgDecoder
 
 from dinov3.hub.backbones import (
     dinov3_convnext_tiny,
@@ -84,7 +84,7 @@ CONVNEXT_FEATURE_DIMS = {
 def build_factory(version: str):
     def factory(embed_dim: int, checkpoint_dir="checkpoints") -> Tuple[AbstractFeatureExtractor, AbstractFeatureDecoder]:
         extractor = DINOv3ConvNextExtractor(version, checkpoint_dir=checkpoint_dir)
-        decoder = DINOv3CNNDecoder(
+        decoder = DINOv3LinearAvgDecoder(
             in_channels=embed_dim,
             out_channels=CONVNEXT_FEATURE_DIMS[version],
             patch_size=INPUT_PAD_SIZE,
