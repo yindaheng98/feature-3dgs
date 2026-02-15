@@ -12,11 +12,12 @@ def prepare_training(
         name: str, sh_degree: int, mode: str, source: str, embed_dim: int, device: str, dataset_cache_device: str = None,
         trainable_camera: bool = False, load_ply: str = None, load_camera: str = None,
         load_mask=True, load_depth=True, load_semantic: bool = True,
-        configs={}, **kwargs) -> Tuple[FeatureCameraDataset, SemanticGaussianModel, AbstractTrainer]:
+        configs={}, extractor_configs={},
+) -> Tuple[FeatureCameraDataset, SemanticGaussianModel, AbstractTrainer]:
     dataset, decoder = prepare_dataset_and_decoder(
         name=name, source=source, embed_dim=embed_dim, device=device, dataset_cache_device=dataset_cache_device,
         trainable_camera=trainable_camera, load_camera=load_camera,
-        load_mask=load_mask, load_depth=load_depth, **kwargs)
+        load_mask=load_mask, load_depth=load_depth, configs=extractor_configs)
     gaussians = prepare_gaussians(
         decoder=decoder, sh_degree=sh_degree, source=source, device=device,
         trainable_camera=trainable_camera, load_ply=load_ply, load_semantic=load_semantic)
@@ -47,11 +48,13 @@ if __name__ == "__main__":
     parser.add_argument("--preload_dataset_cache", action="store_true")
     parser.add_argument("--empty_cache_every_step", action='store_true')
     parser.add_argument("-o", "--option", default=[], action='append', type=str)
+    parser.add_argument("-e", "--option_extractor", default=[], action='append', type=str)
     args = parser.parse_args()
     save_cfg_args(args.destination, args.sh_degree, args.source)
     torch.autograd.set_detect_anomaly(False)
 
     configs = {o.split("=", 1)[0]: eval(o.split("=", 1)[1]) for o in args.option}
+    extractor_configs = {o.split("=", 1)[0]: eval(o.split("=", 1)[1]) for o in args.option_extractor}
     dataset, gaussians, trainer = prepare_training(
         name=args.name, sh_degree=args.sh_degree, mode=args.mode,
         source=args.source, embed_dim=args.embed_dim,
@@ -59,7 +62,7 @@ if __name__ == "__main__":
         trainable_camera="camera" in args.mode,
         load_ply=args.load_ply, load_camera=args.load_camera,
         load_mask=not args.no_image_mask, load_depth=not args.no_depth_data, load_semantic=not args.no_load_semantic,
-        configs=configs)
+        configs=configs, extractor_configs=extractor_configs)
     dataset.save_cameras(os.path.join(args.destination, "cameras.json"))
     if args.preload_dataset_cache:
         dataset.preload_cache()
