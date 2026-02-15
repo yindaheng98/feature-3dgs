@@ -11,7 +11,7 @@ class DINOv3CNNDecoder(NoopFeatureDecoder):
     """Decoder that aligns Gaussian features with DINOv3 extractor output.
 
     Two-stage pipeline:
-      1. **transform_feature** - a learnable per-point linear mapping
+      1. **transform_features** - a learnable per-point linear mapping
          ``(N, C_in) -> (N, C_out)`` that converts each feature vector
          from the Gaussian embedding space to the DINOv3 feature space.
       2. **postprocess** - spatial downsampling that matches DINOv3's

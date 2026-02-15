@@ -8,17 +8,17 @@ from feature_3dgs import SemanticGaussianModel
 
 @dataclass(frozen=True)
 class SemanticDensificationInstruct(DensificationInstruct):
-    new_semantic_features: torch.Tensor = None
-    replace_semantic_features_mask: torch.Tensor = None
-    replace_semantic_features: torch.Tensor = None
+    new_encoded_semantics: torch.Tensor = None
+    replace_encoded_semantics_mask: torch.Tensor = None
+    replace_encoded_semantics: torch.Tensor = None
 
 
 class SemanticDensificationTrainer(DensificationTrainer):
-    """DensificationTrainer that manages semantic_features in the optimizer."""
+    """DensificationTrainer that manages encoded_semantics in the optimizer."""
 
     optim_attr_names = {
         **DensificationTrainer.optim_attr_names,
-        "semantic": "semantic_features",
+        "semantic": "encoded_semantics",
     }
 
 

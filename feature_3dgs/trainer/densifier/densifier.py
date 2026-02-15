@@ -10,7 +10,7 @@ from .trainer import SemanticDensificationInstruct, SemanticDensificationTrainer
 
 
 class SemanticSplitCloneDensifier(SplitCloneDensifier):
-    """SplitCloneDensifier that also handles _semantic_features."""
+    """SplitCloneDensifier that also handles _encoded_semantics."""
 
     @property
     def model(self) -> SemanticGaussianModel:
@@ -20,10 +20,10 @@ class SemanticSplitCloneDensifier(SplitCloneDensifier):
         base = super().densify_and_split(grads, grad_threshold, scene_extent, N)
         # base.replace_xyz_mask is exactly the selected_pts_mask
         selected_pts_mask = base.replace_xyz_mask
-        new_semantic_features = self.model._semantic_features[selected_pts_mask]
+        new_encoded_semantics = self.model._encoded_semantics[selected_pts_mask]
         return SemanticDensificationInstruct(
             **base._asdict(),
-            new_semantic_features=new_semantic_features,
+            new_encoded_semantics=new_encoded_semantics,
         )
 
     def densify_and_clone(self, grads, grad_threshold, scene_extent):
@@ -40,7 +40,7 @@ class SemanticSplitCloneDensifier(SplitCloneDensifier):
             new_opacity=self.model._opacity[selected_pts_mask],
             new_scaling=self.model._scaling[selected_pts_mask],
             new_rotation=self.model._rotation[selected_pts_mask],
-            new_semantic_features=self.model._semantic_features[selected_pts_mask],
+            new_encoded_semantics=self.model._encoded_semantics[selected_pts_mask],
         )
 
 

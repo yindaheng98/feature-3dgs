@@ -10,30 +10,32 @@ from .decoder import AbstractFeatureDecoder
 class SemanticGaussianModel(GaussianModel):
     def __init__(self, sh_degree: int, decoder: AbstractFeatureDecoder):
         super(SemanticGaussianModel, self).__init__(sh_degree)
-        self._semantic_features = torch.empty(0)
+        self._encoded_semantics = torch.empty(0)
         self._decoder = decoder
 
     def to(self, device):
         super().to(device)
-        self._semantic_features = self._semantic_features.to(device)
+        self._encoded_semantics = self._encoded_semantics.to(device)
         self._decoder = self._decoder.to(device)
         return self
 
     @property
-    def get_semantic_features(self):
-        return self._semantic_features
+    def get_encoded_semantics(self):
+        """Raw per-Gaussian encoded semantics (before decoder transform)."""
+        return self._encoded_semantics
 
     @property
-    def get_aligned_semantic_features(self):
-        """Per-Gaussian features transformed to the extractor's feature space.
+    def get_semantics(self):
+        """Per-Gaussian semantic features aligned with the extractor's space.
 
-        Applies the decoder's pointwise transform_feature (no spatial
-        post-processing) so the result is aligned with the extractor output.
+        Applies the decoder's pointwise transform_features (no spatial
+        post-processing) so the result is directly comparable to the
+        extractor output.
 
         Returns:
             (N, C_out) tensor in the extractor's feature space.
         """
-        return self._decoder.transform_features(self._semantic_features)
+        return self._decoder.transform_features(self._encoded_semantics)
 
     @property
     def get_decoder(self):
@@ -47,7 +49,7 @@ class SemanticGaussianModel(GaussianModel):
             scales=self.get_scaling,
             rotations=self.get_rotation,
             shs=self.get_features,
-            semantic_features=self.get_semantic_features,
+            semantic_features=self.get_encoded_semantics,
         )
 
     def render(
@@ -123,29 +125,29 @@ class SemanticGaussianModel(GaussianModel):
         }
         return out
 
-    def init_semantic_features(self):
-        semantic_features = torch.zeros((self._xyz.shape[0], self._decoder.embed_dim), dtype=torch.float, device=self._xyz.device)
-        self._semantic_features = nn.Parameter(semantic_features.requires_grad_(True))
+    def init_encoded_semantics(self):
+        encoded_semantics = torch.zeros((self._xyz.shape[0], self._decoder.embed_dim), dtype=torch.float, device=self._xyz.device)
+        self._encoded_semantics = nn.Parameter(encoded_semantics.requires_grad_(True))
         return self
 
     def create_from_pcd(self, points: torch.Tensor, colors: torch.Tensor):
         super().create_from_pcd(points, colors)
-        return self.init_semantic_features()
+        return self.init_encoded_semantics()
 
     def save_ply(self, path: str):
         super().save_ply(path)
-        semantic_features = self._semantic_features.detach()
-        torch.save(semantic_features, path + '.semantic.pt')
+        encoded_semantics = self._encoded_semantics.detach()
+        torch.save(encoded_semantics, path + '.semantic.pt')
         self._decoder.save(path + '.decoder.pt')
 
     def load_ply(self, path: str, load_semantic: bool = True):
         super().load_ply(path)
         if load_semantic:
-            semantic_features = torch.load(path + '.semantic.pt').to(self._xyz.device)
-            self._semantic_features = nn.Parameter(semantic_features.requires_grad_(True))
+            encoded_semantics = torch.load(path + '.semantic.pt').to(self._xyz.device)
+            self._encoded_semantics = nn.Parameter(encoded_semantics.requires_grad_(True))
             self._decoder.load(path + '.decoder.pt')
         else:
-            self.init_semantic_features()
+            self.init_encoded_semantics()
 
     def update_points_add(
         self,
@@ -155,7 +157,7 @@ class SemanticGaussianModel(GaussianModel):
         scaling: nn.Parameter,
         rotation: nn.Parameter,
         opacity: nn.Parameter,
-        semantic_features: nn.Parameter,
+        encoded_semantics: nn.Parameter,
     ):
         super().update_points_add(
             xyz=xyz,
@@ -168,8 +170,8 @@ class SemanticGaussianModel(GaussianModel):
 
         def is_same_prefix(attr: nn.Parameter, ref: nn.Parameter):
             return (attr[:ref.shape[0]] == ref).all()
-        assert is_same_prefix(semantic_features, self._semantic_features)
-        self._semantic_features = semantic_features
+        assert is_same_prefix(encoded_semantics, self._encoded_semantics)
+        self._encoded_semantics = encoded_semantics
 
     def update_points_replace(
             self,
@@ -179,7 +181,7 @@ class SemanticGaussianModel(GaussianModel):
             scaling_mask: torch.Tensor, scaling: nn.Parameter,
             rotation_mask: torch.Tensor, rotation: nn.Parameter,
             opacity_mask: torch.Tensor, opacity: nn.Parameter,
-            semantic_features_mask: torch.Tensor, semantic_features: nn.Parameter
+            encoded_semantics_mask: torch.Tensor, encoded_semantics: nn.Parameter
     ):
         super().update_points_replace(
             xyz_mask=xyz_mask, xyz=xyz,
@@ -192,8 +194,8 @@ class SemanticGaussianModel(GaussianModel):
 
         def is_same_rest(attr: nn.Parameter, ref: nn.Parameter, mask: torch.Tensor):
             return (attr[~mask, ...] == ref[~mask, ...]).all()
-        assert semantic_features_mask is None or is_same_rest(semantic_features, self._semantic_features, semantic_features_mask)
-        self._semantic_features = semantic_features
+        assert encoded_semantics_mask is None or is_same_rest(encoded_semantics, self._encoded_semantics, encoded_semantics_mask)
+        self._encoded_semantics = encoded_semantics
 
     def update_points_remove(
             self,
@@ -204,7 +206,7 @@ class SemanticGaussianModel(GaussianModel):
             scaling,
             rotation,
             opacity,
-            semantic_features
+            encoded_semantics
     ):
         super().update_points_remove(
             removed_mask=removed_mask,
@@ -218,8 +220,8 @@ class SemanticGaussianModel(GaussianModel):
 
         def is_same_rest(attr: nn.Parameter, ref: nn.Parameter):
             return (attr == ref[~removed_mask, ...]).all()
-        assert is_same_rest(semantic_features, self._semantic_features)
-        self._semantic_features = semantic_features
+        assert is_same_rest(encoded_semantics, self._encoded_semantics)
+        self._encoded_semantics = encoded_semantics
 
 
 class CameraTrainableSemanticGaussianModel(SemanticGaussianModel):

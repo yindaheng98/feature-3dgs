@@ -26,7 +26,7 @@ class AbstractFeatureDecoder(ABC):
         output (e.g. downscaling to patch-level resolution).
 
         Args:
-            feature_map: (C, H, W) tensor after transform_feature.
+            feature_map: (C, H, W) tensor after transform_features.
 
         Returns:
             (C, H', W') tensor matching extractor output spatial size.
@@ -36,7 +36,7 @@ class AbstractFeatureDecoder(ABC):
     def __call__(self, feature_map: torch.Tensor) -> torch.Tensor:
         """Full decode pipeline on a feature map (C_in, H, W).
 
-        1. Reshape (C_in, H, W) -> (H*W, C_in), apply transform_feature,
+        1. Reshape (C_in, H, W) -> (H*W, C_in), apply transform_features,
            then reshape back to (C_out, H, W).
         2. Apply postprocess for spatial downsampling.
         """
