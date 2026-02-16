@@ -81,6 +81,17 @@ python -m feature_3dgs.render \
 
 Rendered feature maps are PCA-projected to RGB and saved alongside ground-truth feature visualisations.
 
+### Interactive Viewer
+
+```shell
+python -m feature_3dgs.viewer \
+    --name dinov3_vitl16 --embed_dim 32 \
+    -s data/truck -d output/truck-semantic -i 30000 \
+    --port 8080
+```
+
+Opens an interactive viewer (via [nerfview](https://github.com/hangg7/nerfview)) that renders PCA-colourised semantic feature maps in real time from free-viewpoint camera controls.
+
 ## API Usage
 
 ### Dataset & Decoder
