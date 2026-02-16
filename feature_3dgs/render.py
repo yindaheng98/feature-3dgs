@@ -5,6 +5,7 @@ import torch
 import torch.nn.functional as F
 import torchvision
 from tqdm import tqdm
+from gaussian_splatting.utils import psnr
 from feature_3dgs import SemanticGaussianModel, get_available_extractor_decoders
 from feature_3dgs.extractor import FeatureCameraDataset
 from feature_3dgs.prepare import prepare_dataset_and_decoder, prepare_gaussians
@@ -103,12 +104,18 @@ def rendering(dataset: FeatureCameraDataset, gaussians: SemanticGaussianModel, s
     os.makedirs(feature_map_path, exist_ok=True)
 
     pbar = tqdm(dataset, dynamic_ncols=True, desc="Rendering")
+    with open(os.path.join(save, "quality_semantic.csv"), "w") as f:
+        f.write("name,psnr\n")
     for idx, camera in enumerate(pbar):
         out = gaussians(camera)
-        rendering = colorize_feature_map(out["feature_map"], weight, bias)  # (3, H, W)
-        gt = colorize_feature_map(camera.custom_data['feature_map'], weight, bias)  # (3, H, W)
-        torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(idx) + "_semantic.png"))
-        torchvision.utils.save_image(gt, os.path.join(gt_path, '{0:05d}'.format(idx) + "_semantic.png"))
+        rendering = out["feature_map"]  # (D, H, W)
+        gt = camera.custom_data['feature_map']  # (D, H, W)
+        psnr_value = psnr(rendering, gt).mean().item()
+        pbar.set_postfix({"PSNR": psnr_value})
+        with open(os.path.join(save, "quality_semantic.csv"), "a") as f:
+            f.write('{0:05d}'.format(idx) + f",{psnr_value}\n")
+        torchvision.utils.save_image(colorize_feature_map(rendering, weight, bias), os.path.join(render_path, '{0:05d}'.format(idx) + "_semantic.png"))
+        torchvision.utils.save_image(colorize_feature_map(gt, weight, bias), os.path.join(gt_path, '{0:05d}'.format(idx) + "_semantic.png"))
         out = gaussians.forward_linear_projection(camera, weight=weight, bias=bias)
         rendering = torch.sigmoid(out["feature_map"] * 2.0)
         gt = colorize_feature_map(camera.custom_data['feature_map'], weight, bias)
