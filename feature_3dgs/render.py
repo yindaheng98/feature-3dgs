@@ -45,7 +45,7 @@ def build_pca(
     desc = ("Rendering" if gaussians is not None else "Extracting") + " features for PCA fitting"
     for idx in tqdm(range(len(dataset)), dynamic_ncols=True, desc=desc):
         if gaussians is not None:
-            camera = dataset.cameras[idx]  # base camera – skip feature extraction
+            camera = dataset.cameras[idx]  # base camera - skip feature extraction
             out = gaussians(camera)
             feature_map = out["feature_map"].cpu()  # (D, H, W)
         else:
