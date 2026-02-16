@@ -15,8 +15,8 @@ class DINOv3LinearAvgDecoder(NoopFeatureDecoder):
     Three operations:
       1. **init** - PCA on extractor features to initialise the linear layer.
       2. **transform_features** - ``nn.Linear(C_in, C_out)`` per point.
-      3. **transform_feature_map** - fuses the linear mapping with
-         patch-level average pooling into a single ``F.conv2d`` call.
+      3. **transform_feature_map** - reparameterizes the linear mapping
+         with patch-level average pooling into a single ``F.conv2d`` call.
          The Conv2d kernel is derived on-the-fly from ``self.linear``
          weights (uniform spatial values = weight / P²), so only the
          linear layer's parameters are trained.  This avoids materialising
@@ -65,6 +65,22 @@ class DINOv3LinearAvgDecoder(NoopFeatureDecoder):
         # Derive conv kernel from linear weights
         weight = self.linear.weight[:, :, None, None].expand(-1, -1, P, P) / (P * P)
         return F.conv2d(x.unsqueeze(0), weight, self.linear.bias, stride=P).squeeze(0)
+
+    def transform_feature_map_linear(self, feature_map: torch.Tensor,
+                                     weight: torch.Tensor,
+                                     bias: torch.Tensor = None) -> torch.Tensor:
+        """Reparameterized: merges ``self.linear`` and the custom linear into one.
+
+        Combined linear:  weight_c = weight @ W1,  bias_c = weight @ b1 + bias
+        This avoids materialising the ``(H*W, C_out)`` intermediate.
+        """
+        combined_weight = weight @ self.linear.weight          # (C_custom, C_in)
+        combined_bias = F.linear(self.linear.bias, weight, bias)  # (C_custom,)
+
+        C, H, W = feature_map.shape
+        x = feature_map.permute(1, 2, 0).reshape(-1, C)       # (H*W, C_in)
+        x = F.linear(x, combined_weight, combined_bias)        # (H*W, C_custom)
+        return x.reshape(H, W, -1).permute(2, 0, 1)            # (C_custom, H, W)
 
     def init(self, dataset: FeatureCameraDataset):
         """Initialise linear layer weights via PCA on the extractor features.

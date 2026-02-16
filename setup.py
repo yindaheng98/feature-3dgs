@@ -38,7 +38,7 @@ if os.name == 'nt':
 
 setup(
     name="feature_3dgs",
-    version='1.0.0',
+    version='1.1.0',
     author='yindaheng98',
     author_email='yindaheng98@gmail.com',
     url='https://github.com/yindaheng98/gaussian-splatting',

@@ -1,8 +1,9 @@
 import os
-from typing import List, Tuple
+from typing import Tuple
+import numpy as np
 import torch
+import torch.nn.functional as F
 import torchvision
-from sklearn.decomposition import PCA
 from tqdm import tqdm
 from feature_3dgs import SemanticGaussianModel, get_available_extractor_decoders
 from feature_3dgs.extractor import FeatureCameraDataset
@@ -23,24 +24,21 @@ def prepare_rendering(
     return dataset, gaussians
 
 
-def build_pca(
+def build_linear_for_visualization(
     dataset: FeatureCameraDataset,
     gaussians: SemanticGaussianModel = None,
-) -> Tuple[PCA, List[torch.Tensor]]:
-    """Collect feature maps and fit a PCA with 3 components.
+    device: str = "cpu",
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Fit PCA on feature maps and return ``(weight, bias)`` for ``F.linear``.
 
-    If *gaussians* is not ``None``, each view is rendered through the model and
-    the **rendered** feature maps are used for PCA fitting.
-
-    If *gaussians* is ``None``, feature maps are taken directly from the
-    dataset (i.e. extractor output).
+    If *gaussians* is not ``None``, rendered (decoded) feature maps are used;
+    otherwise extractor outputs from the dataset are used.
 
     Returns:
-        pca: fitted ``PCA(n_components=3, whiten=True)``
-        feature_maps: list of ``(D, H, W)`` CPU tensors
+        weight: ``(3, D)``
+        bias:   ``(3,)``
     """
-    all_features: List[torch.Tensor] = []
-    feature_maps: List[torch.Tensor] = []
+    all_features = []
 
     desc = ("Rendering" if gaussians is not None else "Extracting") + " features for PCA fitting"
     for idx in tqdm(range(len(dataset)), dynamic_ncols=True, desc=desc):
@@ -51,53 +49,70 @@ def build_pca(
         else:
             feature_map = dataset[idx].custom_data['feature_map'].cpu()  # (D, H, W)
 
-        feature_maps.append(feature_map)
         D = feature_map.shape[0]
         all_features.append(feature_map.reshape(D, -1).permute(1, 0))  # (H*W, D)
 
     all_features_np = torch.cat(all_features, dim=0).numpy()  # (N_total, D)
     del all_features
 
+    from sklearn.decomposition import PCA
     pca = PCA(n_components=3, whiten=True)
     pca.fit(all_features_np)
     del all_features_np
 
-    return pca, feature_maps
+    components = pca.components_.copy()  # (n_components, D)
+    if pca.whiten:
+        components /= np.sqrt(pca.explained_variance_)[:, None]
+    weight = torch.from_numpy(components).float().to(device)
+    bias = torch.from_numpy(-pca.mean_ @ components.T).float().to(device)
+    return weight, bias
 
 
-def colorize_feature_map(feature_map: torch.Tensor, pca: PCA) -> torch.Tensor:
-    """Project a single feature map to an RGB image via PCA + sigmoid.
+def colorize_feature_map(
+    feature_map: torch.Tensor,
+    weight: torch.Tensor,
+    bias: torch.Tensor = None,
+) -> torch.Tensor:
+    """Project a feature map to RGB via linear projection + sigmoid.
 
     Args:
-        feature_map: ``(D, H, W)`` tensor (CPU).
-        pca: a fitted ``PCA`` with ``n_components=3``.
+        feature_map: ``(D, H, W)`` tensor.
+        weight: ``(3, D)`` linear weight.
+        bias:   ``(3,)`` linear bias.
 
     Returns:
-        ``(H, W, 3)`` tensor with values in ``[0, 1]``.
+        ``(3, H, W)`` tensor with values in ``[0, 1]``.
     """
     D, H, W = feature_map.shape
-    features = feature_map.reshape(D, -1).permute(1, 0).cpu().numpy()  # (H*W, D)
-    projected = torch.from_numpy(pca.transform(features)).view(H, W, 3)
-    # Vibrant colours: multiply by 2 and pass through sigmoid
-    return torch.sigmoid(projected * 2.0).permute(2, 0, 1)
+    x = feature_map.reshape(D, -1).permute(1, 0)                  # (H*W, D)
+    x = F.linear(x, weight.to(x.device), bias.to(x.device))       # (H*W, 3)
+    return torch.sigmoid(x.reshape(H, W, 3).permute(2, 0, 1) * 2.0)
 
 
 def rendering(dataset: FeatureCameraDataset, gaussians: SemanticGaussianModel, save: str) -> None:
-    pca, gt_feature_maps = build_pca(dataset, gaussians=None)
+    device = gaussians.get_xyz.device
+    weight, bias = build_linear_for_visualization(dataset, gaussians=None, device=device)
 
     os.makedirs(save, exist_ok=True)
     dataset.save_cameras(os.path.join(save, "cameras.json"))
     render_path = os.path.join(save, "renders")
     gt_path = os.path.join(save, "gt")
+    feature_map_path = os.path.join(save, "semantics")
     os.makedirs(render_path, exist_ok=True)
     os.makedirs(gt_path, exist_ok=True)
+    os.makedirs(feature_map_path, exist_ok=True)
+
     pbar = tqdm(dataset, dynamic_ncols=True, desc="Rendering")
     for idx, camera in enumerate(pbar):
         out = gaussians(camera)
-        rendering = colorize_feature_map(out["feature_map"], pca)  # (H, W, 3)
-        gt = colorize_feature_map(gt_feature_maps[idx], pca)  # (H, W, 3)
+        rendering = colorize_feature_map(out["feature_map"], weight, bias)  # (3, H, W)
+        gt = colorize_feature_map(camera.custom_data['feature_map'], weight, bias)  # (3, H, W)
         torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(idx) + "_semantic.png"))
         torchvision.utils.save_image(gt, os.path.join(gt_path, '{0:05d}'.format(idx) + "_semantic.png"))
+        out = gaussians.forward_linear_projection(camera, weight=weight, bias=bias)
+        rendering = torch.sigmoid(out["feature_map"] * 2.0)
+        gt = colorize_feature_map(camera.custom_data['feature_map'], weight, bias)
+        torchvision.utils.save_image(rendering, os.path.join(feature_map_path, '{0:05d}'.format(idx) + ".png"))
 
 
 if __name__ == "__main__":

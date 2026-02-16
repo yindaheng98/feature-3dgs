@@ -18,10 +18,10 @@ class AbstractFeatureDecoder(ABC):
 
     ``transform_feature_map`` has a default implementation that applies
     ``transform_features`` per pixel (no spatial change).  Subclasses may
-    override it with fused, memory-efficient implementations — e.g. a single
-    Conv2d whose weights are derived from the linear layer, combining the
-    per-point mapping and spatial downsampling without materialising a large
-    intermediate tensor.
+    override it with reparameterized, memory-efficient implementations —
+    e.g. a single Conv2d whose weights are derived from the linear layer,
+    combining the per-point mapping and spatial downsampling without
+    materialising a large intermediate tensor.
 
     ``transform_feature_map_linear`` extends the pipeline with a custom
     linear projection appended after ``transform_features``.  It keeps

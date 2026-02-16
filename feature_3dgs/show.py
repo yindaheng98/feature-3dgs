@@ -4,20 +4,22 @@ import torch
 from tqdm import tqdm
 from feature_3dgs import get_available_extractor_decoders
 from feature_3dgs.prepare import prepare_dataset_and_decoder
-from feature_3dgs.render import build_pca, colorize_feature_map
+from feature_3dgs.render import build_linear_for_visualization, colorize_feature_map
 
 
 def show_dataset(dataset, destination: str):
     """Compute PCA on all feature maps in the dataset, then save projected images."""
-    pca, feature_maps = build_pca(dataset, gaussians=None)
+    weight, bias = build_linear_for_visualization(dataset, gaussians=None)
 
     # ---- Save visualisations ----
-    for idx in tqdm(range(len(feature_maps)), desc="Saving feature maps"):
-        projected_image = colorize_feature_map(feature_maps[idx], pca)  # (H, W, 3)
+    pbar = tqdm(dataset, dynamic_ncols=True, desc="Saving feature maps")
+    for idx, camera in enumerate(pbar):
+        feature_map = camera.custom_data['feature_map']
+        projected_image = colorize_feature_map(feature_map, weight, bias)  # (3, H, W)
 
         # Save the PCA visualisation
         fig, axes = plt.subplots(1, 2, dpi=200, figsize=(8, 4))
-        gt = dataset[idx].ground_truth_image
+        gt = camera.ground_truth_image
         axes[0].imshow(gt.permute(1, 2, 0).cpu().clamp(0, 1).numpy())
         axes[0].set_title("Original")
         axes[0].axis("off")
