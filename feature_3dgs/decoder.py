@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import torch
+import torch.nn.functional as F
 from .extractor import FeatureCameraDataset
 
 
@@ -21,6 +22,12 @@ class AbstractFeatureDecoder(ABC):
     Conv2d whose weights are derived from the linear layer, combining the
     per-point mapping and spatial downsampling without materialising a large
     intermediate tensor.
+
+    ``transform_feature_map_linear`` extends the pipeline with a custom
+    linear projection appended after ``transform_features``.  It keeps
+    the original spatial resolution (no downsampling), making it suitable
+    for producing full-resolution feature maps with arbitrary output
+    dimensions — e.g. a 3-channel PCA projection for visualisation.
     """
 
     def init(self, dataset: FeatureCameraDataset):
@@ -47,6 +54,28 @@ class AbstractFeatureDecoder(ABC):
         x = feature_map.permute(1, 2, 0).reshape(-1, C)  # (H*W, C_in)
         x = self.transform_features(x)                    # (H*W, C_out)
         return x.reshape(H, W, -1).permute(2, 0, 1)       # (C_out, H, W)
+
+    def transform_feature_map_linear(self, feature_map: torch.Tensor,
+                                     weight: torch.Tensor,
+                                     bias: torch.Tensor = None) -> torch.Tensor:
+        """Apply transform_features then a custom linear projection per pixel.
+
+        Like ``transform_feature_map`` but appends ``F.linear(x, weight, bias)``
+        and keeps the original spatial resolution (no downsampling).
+
+        Args:
+            feature_map: (C_in, H, W)
+            weight: (C_custom, C_out) linear weight.
+            bias:   (C_custom,) or None.
+
+        Returns:
+            (C_custom, H, W) at the original spatial resolution.
+        """
+        C, H, W = feature_map.shape
+        x = feature_map.permute(1, 2, 0).reshape(-1, C)  # (H*W, C_in)
+        x = self.transform_features(x)                    # (H*W, C_out)
+        x = F.linear(x, weight, bias)                     # (H*W, C_custom)
+        return x.reshape(H, W, -1).permute(2, 0, 1)       # (C_custom, H, W)
 
     def __call__(self, feature_map: torch.Tensor) -> torch.Tensor:
         return self.transform_feature_map(feature_map)

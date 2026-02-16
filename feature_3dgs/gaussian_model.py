@@ -52,7 +52,12 @@ class SemanticGaussianModel(GaussianModel):
             semantic_features=self.get_encoded_semantics,
         )
 
-    def render(
+    def render(self, *args, **kwargs) -> dict:
+        out = self.render_encoded(*args, **kwargs)
+        out['feature_map'] = self.get_decoder(out['feature_map'])
+        return out
+
+    def render_encoded(
         self,
         viewpoint_camera: Camera,
         means3D: torch.Tensor,
@@ -107,8 +112,6 @@ class SemanticGaussianModel(GaussianModel):
             cov3D_precomp=cov3D_precomp)
         rendered_image = viewpoint_camera.postprocess(viewpoint_camera, rendered_image)
 
-        feature_map = self.get_decoder(feature_map)
-
         # Those Gaussians that were frustum culled or had a radius of 0 were not visible.
         # They will be excluded from value updates used in the splitting criteria.
         rendered_image = rendered_image.clamp(0, 1)
@@ -120,9 +123,27 @@ class SemanticGaussianModel(GaussianModel):
             # Used by the densifier to get the gradient of the viewspace points
             "get_viewspace_grad": lambda out: out["viewspace_points"].grad,
             "viewspace_points": screenspace_points,
-            # Feature map
+            # Feature maps: encoded (raw rasterised) and decoded (extractor-aligned)
             'feature_map': feature_map,
         }
+        return out
+
+    def forward_linear_projection(self, viewpoint_camera: Camera, weight: torch.Tensor, bias: torch.Tensor = None):
+        """Render and apply a custom linear projection to the feature map.
+
+        The decoder's ``transform_features`` is applied per pixel, followed
+        by the supplied linear mapping.  Spatial resolution is preserved.
+        """
+        out = self.render_encoded(
+            viewpoint_camera=viewpoint_camera,
+            means3D=self.get_xyz,
+            opacity=self.get_opacity,
+            scales=self.get_scaling,
+            rotations=self.get_rotation,
+            shs=self.get_features,
+            semantic_features=self.get_encoded_semantics,
+        )
+        out['feature_map'] = self._decoder.transform_feature_map_linear(out['feature_map'], weight=weight, bias=bias)
         return out
 
     def init_encoded_semantics(self):
