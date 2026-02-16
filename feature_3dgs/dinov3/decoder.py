@@ -47,10 +47,18 @@ class DINOv3LinearAvgDecoder(NoopFeatureDecoder):
     def transform_feature_map(self, feature_map: torch.Tensor) -> torch.Tensor:
         """Fused linear + avg-pool via a single Conv2d.
 
-        Derives a (C_out, C_in, P, P) kernel from ``self.linear.weight``
-        with uniform spatial values (weight / P²), then applies it with
-        stride P.  Mathematically equivalent to per-pixel linear mapping
-        followed by non-overlapping patch averaging.
+        Equivalent to (but avoids the large (C_out, H, W) intermediate):
+
+            x = padding(feature_map, P)
+            C, H, W = x.shape
+            x = x.permute(1, 2, 0).reshape(-1, C)        # (H*W, C_in)
+            x = self.linear(x)                             # (H*W, C_out)
+            x = x.reshape(H, W, -1).permute(2, 0, 1)      # (C_out, H, W)
+            x = F.avg_pool2d(x, kernel_size=P, stride=P)   # (C_out, H_p, W_p)
+
+        Because avg_pool (mean over P² elements) and the linear layer are
+        both linear operations, they fuse into one Conv2d with kernel
+        ``weight[:, :, None, None] / P²`` and stride P.
         """
         P = self.patch_size
         x = padding(feature_map, P)                        # (C_in, H', W')
