@@ -145,6 +145,44 @@
             ]
         },
         {
+            "name": "viewer",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "gaussian_splatting.viewer",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "-d",
+                "output/truck-semantic",
+                "-i",
+                "30000",
+                "--port",
+                "8080",
+            ]
+        },
+        {
+            "name": "viewer semantic",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "feature_3dgs.viewer",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--name",
+                "dinov3_vitl16",
+                "--embed_dim",
+                "16",
+                "-s",
+                "data/truck",
+                "-d",
+                "output/truck-semantic",
+                "-i",
+                "30000",
+                "--port",
+                "8080",
+            ]
+        },
+        {
             "name": "show",
             "type": "debugpy",
             "request": "launch",
