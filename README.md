@@ -22,11 +22,15 @@ Each Gaussian point carries a learnable **encoded semantics** embedding alongsid
 * [CUDA Toolkit](https://developer.nvidia.com/cuda-12-4-0-download-archive) (12.4 recommended, match with PyTorch version)
 * [gsplat](https://github.com/nerfstudio-project/gsplat)
 
-### Development Install
+### Install
 
 ```shell
 pip install --upgrade git+https://github.com/facebookresearch/dinov3@main
 pip install --upgrade git+https://github.com/yindaheng98/gaussian-splatting.git@master --no-build-isolation
+pip install --upgrade git+https://github.com/yindaheng98/feature-3dgs.git@main --no-build-isolation
+# or
+git clone --recursive https://github.com/yindaheng98/feature-3dgs.git
+cd feature-3dgs
 pip install --target . --upgrade . --no-deps
 ```
 
