@@ -1,19 +1,8 @@
-from abc import ABC, abstractmethod
 import tqdm
-import torch
 from gaussian_splatting import Camera
 from gaussian_splatting.dataset import CameraDataset, TrainableCameraDataset
 
-
-class AbstractFeatureExtractor(ABC):
-
-    @abstractmethod
-    def __call__(self, image: torch.Tensor) -> torch.Tensor:
-        pass
-
-    @abstractmethod
-    def to(self, device) -> 'AbstractFeatureExtractor':
-        return self
+from .abc import AbstractFeatureExtractor
 
 
 class FeatureCameraDataset(CameraDataset):
