@@ -75,25 +75,5 @@ def SemanticTrainerWrapper(
     )
 
 
-def BaseSemanticTrainer(
-        model: SemanticGaussianModel,
-        dataset: FeatureCameraDataset,
-        semantic_lr=0.1,
-        semantic_decoder_lr_init=0.001,
-        semantic_decoder_lr_final=0.00001,
-        semantic_decoder_lr_delay_mult=0.01,
-        semantic_decoder_lr_max_steps=30_000,
-        semantic_loss_weight=1.0,
-        **configs) -> SemanticTrainer:
-    return SemanticTrainerWrapper(
-        lambda model, dataset, **configs: BaseTrainer(model, dataset, **configs),
-        model=model,
-        dataset=dataset,
-        semantic_lr=semantic_lr,
-        semantic_decoder_lr_init=semantic_decoder_lr_init,
-        semantic_decoder_lr_final=semantic_decoder_lr_final,
-        semantic_decoder_lr_delay_mult=semantic_decoder_lr_delay_mult,
-        semantic_decoder_lr_max_steps=semantic_decoder_lr_max_steps,
-        semantic_loss_weight=semantic_loss_weight,
-        **configs,
-    )
+def BaseSemanticTrainer(model: SemanticGaussianModel, dataset: FeatureCameraDataset, **configs) -> SemanticTrainer:
+    return SemanticTrainerWrapper(BaseTrainer, model, dataset, **configs)

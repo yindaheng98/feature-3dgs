@@ -27,17 +27,11 @@ def DepthOpacityResetDensificationTrainer(model: SemanticGaussianModel, dataset:
 
 
 def BaseOpacityResetDensificationCameraTrainer(model: CameraTrainableSemanticGaussianModel, dataset: TrainableFeatureCameraDataset, **configs):
-    return CameraTrainerWrapper(
-        lambda model, dataset, **configs: BaseOpacityResetDensificationTrainer(model, dataset, **configs),
-        model, dataset, **configs
-    )
+    return CameraTrainerWrapper(BaseOpacityResetDensificationTrainer, model, dataset, **configs)
 
 
 def DepthOpacityResetDensificationCameraTrainer(model: CameraTrainableSemanticGaussianModel, dataset: TrainableFeatureCameraDataset, **configs):
-    return CameraTrainerWrapper(
-        lambda model, dataset, **configs: DepthOpacityResetDensificationTrainer(model, dataset, **configs),
-        model, dataset, **configs
-    )
+    return CameraTrainerWrapper(DepthOpacityResetDensificationTrainer, model, dataset, **configs)
 
 
 # Aliases for default trainers
