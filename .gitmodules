@@ -2,3 +2,7 @@
 	path = submodules/diff-gaussian-rasterization
 	url = https://github.com/yindaheng98/diff-gaussian-rasterization-feature.git
 	branch = dr_aa
+[submodule "submodules/featurefusion"]
+	path = submodules/featurefusion
+	url = https://github.com/yindaheng98/diff-gaussian-rasterization-feature.git
+	branch = featurefusion

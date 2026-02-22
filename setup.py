@@ -23,10 +23,12 @@ rasterizor_sources = [
     "cuda_rasterizer/backward.cu",
     "rasterize_points.cu",
     "ext.cpp"]
+featurefusion_root = "submodules/featurefusion"
 
 packages = ['feature_3dgs'] + ["feature_3dgs." + package for package in find_packages(where="feature_3dgs")]
 rasterizor_packages = {
     'feature_3dgs.diff_gaussian_rasterization': 'submodules/diff-gaussian-rasterization/diff_gaussian_rasterization',
+    'feature_3dgs.utils.featurefusion': 'submodules/featurefusion/diff_gaussian_rasterization',
 }
 
 cxx_compiler_flags = []
@@ -38,7 +40,7 @@ if os.name == 'nt':
 
 setup(
     name="feature_3dgs",
-    version='1.2.0',
+    version='1.2.1.1',
     author='yindaheng98',
     author_email='yindaheng98@gmail.com',
     url='https://github.com/yindaheng98/gaussian-splatting',
@@ -58,6 +60,11 @@ setup(
             name="feature_3dgs.diff_gaussian_rasterization._C",
             sources=[os.path.join(rasterizor_root, source) for source in rasterizor_sources],
             extra_compile_args={"nvcc": nvcc_compiler_flags + ["-I" + os.path.join(os.path.abspath(rasterizor_root), "third_party/glm/")]}
+        ),
+        CUDAExtension(
+            name="feature_3dgs.utils.featurefusion._C",
+            sources=[os.path.join(featurefusion_root, source) for source in rasterizor_sources],
+            extra_compile_args={"nvcc": nvcc_compiler_flags + ["-I" + os.path.join(os.path.abspath(featurefusion_root), "third_party/glm/")]}
         ),
     ],
     cmdclass={
