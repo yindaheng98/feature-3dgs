@@ -75,7 +75,7 @@ def rendering(dataset: FeatureCameraDataset, gaussians: SemanticGaussianModel, s
             f.write('{0:05d}'.format(idx) + f",{psnr_value},{psnr_rgb_value}\n")
         torchvision.utils.save_image(rendering_rgb, os.path.join(render_path, '{0:05d}'.format(idx) + "_semantic.png"))
         torchvision.utils.save_image(gt_rgb, os.path.join(gt_path, '{0:05d}'.format(idx) + "_semantic.png"))
-        out = gaussians.forward_linear_projection(camera, weight=weight, bias=bias)
+        out = gaussians.forward_projection(camera, weight=weight, bias=bias)
         rendering = torch.sigmoid(out["feature_map"] * 2.0)
         gt = colorize_feature_map(camera.custom_data['feature_map'], weight, bias)
         torchvision.utils.save_image(rendering, os.path.join(feature_map_path, '{0:05d}'.format(idx) + ".png"))

@@ -52,9 +52,76 @@ class SemanticGaussianModel(GaussianModel):
             semantic_features=self.get_encoded_semantics,
         )
 
-    def render(self, *args, **kwargs) -> dict:
-        out = self.render_encoded(*args, **kwargs)
+    def render(
+        self,
+        viewpoint_camera: Camera,
+        means3D: torch.Tensor,
+        opacity: torch.Tensor,
+        scales: torch.Tensor,
+        rotations: torch.Tensor,
+        shs: torch.Tensor,
+        semantic_features: torch.Tensor,
+        colors_precomp=None,
+        cov3D_precomp=None,
+    ) -> dict:
+        out = self.render_encoded(
+            viewpoint_camera=viewpoint_camera,
+            means3D=means3D,
+            opacity=opacity,
+            scales=scales,
+            rotations=rotations,
+            shs=shs,
+            semantic_features=semantic_features,
+            colors_precomp=colors_precomp,
+            cov3D_precomp=cov3D_precomp,
+        )
         out['feature_map'] = self.get_decoder(out['feature_map'])
+        return out
+
+    def forward_projection(self, viewpoint_camera: Camera, weight: torch.Tensor, bias: torch.Tensor = None):
+        """Render and apply a custom linear projection to the feature map.
+
+        The decoder's ``transform_features`` is applied per pixel, followed
+        by the supplied linear mapping.  Spatial resolution is preserved.
+        """
+        return self.render_projection(
+            viewpoint_camera=viewpoint_camera,
+            means3D=self.get_xyz,
+            opacity=self.get_opacity,
+            scales=self.get_scaling,
+            rotations=self.get_rotation,
+            shs=self.get_features,
+            semantic_features=self.get_encoded_semantics,
+            weight=weight,
+            bias=bias,
+        )
+
+    def render_projection(
+        self,
+        viewpoint_camera: Camera,
+        means3D: torch.Tensor,
+        opacity: torch.Tensor,
+        scales: torch.Tensor,
+        rotations: torch.Tensor,
+        shs: torch.Tensor,
+        semantic_features: torch.Tensor,
+        weight: torch.Tensor,
+        bias: torch.Tensor = None,
+        colors_precomp=None,
+        cov3D_precomp=None,
+    ) -> dict:
+        out = self.render_encoded(
+            viewpoint_camera=viewpoint_camera,
+            means3D=means3D,
+            opacity=opacity,
+            scales=scales,
+            rotations=rotations,
+            shs=shs,
+            semantic_features=semantic_features,
+            colors_precomp=colors_precomp,
+            cov3D_precomp=cov3D_precomp,
+        )
+        out['feature_map'] = self._decoder.project_feature_map(out['feature_map'], weight=weight, bias=bias)
         return out
 
     def render_encoded(
@@ -126,24 +193,6 @@ class SemanticGaussianModel(GaussianModel):
             # Feature maps: encoded (raw rasterised) and decoded (extractor-aligned)
             'feature_map': feature_map,
         }
-        return out
-
-    def forward_linear_projection(self, viewpoint_camera: Camera, weight: torch.Tensor, bias: torch.Tensor = None):
-        """Render and apply a custom linear projection to the feature map.
-
-        The decoder's ``transform_features`` is applied per pixel, followed
-        by the supplied linear mapping.  Spatial resolution is preserved.
-        """
-        out = self.render_encoded(
-            viewpoint_camera=viewpoint_camera,
-            means3D=self.get_xyz,
-            opacity=self.get_opacity,
-            scales=self.get_scaling,
-            rotations=self.get_rotation,
-            shs=self.get_features,
-            semantic_features=self.get_encoded_semantics,
-        )
-        out['feature_map'] = self._decoder.project_feature_map(out['feature_map'], weight=weight, bias=bias)
         return out
 
     def init_encoded_semantics(self):
