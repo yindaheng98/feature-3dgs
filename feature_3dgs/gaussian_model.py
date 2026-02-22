@@ -195,14 +195,14 @@ class SemanticGaussianModel(GaussianModel):
         }
         return out
 
-    def init_encoded_semantics(self):
+    def reset_encoded_semantics(self):
         encoded_semantics = torch.zeros((self._xyz.shape[0], self._decoder.embed_dim), dtype=torch.float, device=self._xyz.device)
         self._encoded_semantics = nn.Parameter(encoded_semantics.requires_grad_(True))
         return self
 
     def create_from_pcd(self, points: torch.Tensor, colors: torch.Tensor):
         super().create_from_pcd(points, colors)
-        return self.init_encoded_semantics()
+        return self.reset_encoded_semantics()
 
     def save_ply(self, path: str):
         super().save_ply(path)
@@ -217,7 +217,7 @@ class SemanticGaussianModel(GaussianModel):
             self._encoded_semantics = nn.Parameter(encoded_semantics.requires_grad_(True))
             self._decoder.load(path + '.decoder.pt')
         else:
-            self.init_encoded_semantics()
+            self.reset_encoded_semantics()
 
     def update_points_add(
         self,
