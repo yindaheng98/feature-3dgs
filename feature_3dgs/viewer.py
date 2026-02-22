@@ -48,7 +48,7 @@ def viewer_render_fn(
     )
     print(f"Resolution: {width}x{height}")
 
-    out = gaussians.forward_linear_projection(camera, weight=pca_weight, bias=pca_bias)
+    out = gaussians.forward_projection(camera, weight=pca_weight, bias=pca_bias)
     feature_map = out["feature_map"]  # (3, H, W)
     rgb = torch.sigmoid(feature_map * 2.0)
 
