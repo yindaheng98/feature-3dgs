@@ -5,6 +5,8 @@ import torch.nn.functional as F
 from feature_3dgs.decoder import NoopFeatureDecoder
 from feature_3dgs.extractor import FeatureCameraDataset
 from feature_3dgs.gaussian_model import SemanticGaussianModel
+from feature_3dgs.utils import pca_inverse_transform_params_to_transform_params
+from feature_3dgs.utils.featurefusion import feature_fusion_alpha_avg
 
 from .extractor import padding
 
@@ -103,6 +105,9 @@ class DINOv3LinearAvgDecoder(NoopFeatureDecoder):
             device = self.linear.weight.device
             self.linear.weight.copy_(weight.to(device))
             self.linear.bias.copy_(bias.to(device))
+        weight, bias = pca_inverse_transform_params_to_transform_params(weight, bias)
+        fused = feature_fusion_alpha_avg(gaussians, dataset, weight.to(device), bias.to(device))
+        gaussians._encoded_semantics = nn.Parameter(fused.requires_grad_(True))
 
     # ------------------------------------------------------------------
     # Persistence & utilities
