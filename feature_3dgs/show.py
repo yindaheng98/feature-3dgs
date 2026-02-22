@@ -4,12 +4,13 @@ import torch
 from tqdm import tqdm
 from feature_3dgs import get_available_extractor_decoders
 from feature_3dgs.prepare import prepare_dataset_and_decoder
-from feature_3dgs.render import build_linear_for_visualization, colorize_feature_map
+from feature_3dgs.render import colorize_feature_map
+from feature_3dgs.utils import pca_transform_params
 
 
 def show_dataset(dataset, destination: str):
     """Compute PCA on all feature maps in the dataset, then save projected images."""
-    weight, bias = build_linear_for_visualization(dataset, gaussians=None)
+    weight, bias = pca_transform_params(dataset, n_components=3)
 
     # ---- Save visualisations ----
     pbar = tqdm(dataset, dynamic_ncols=True, desc="Saving feature maps")

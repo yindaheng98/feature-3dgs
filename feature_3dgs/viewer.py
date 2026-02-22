@@ -9,7 +9,8 @@ from gaussian_splatting import build_camera
 from gaussian_splatting.utils import focal2fov
 from feature_3dgs import SemanticGaussianModel, get_available_extractor_decoders
 from feature_3dgs.extractor import FeatureCameraDataset
-from feature_3dgs.render import prepare_rendering, build_linear_for_visualization
+from feature_3dgs.render import prepare_rendering
+from feature_3dgs.utils import pca_transform_params
 
 
 @torch.no_grad()
@@ -59,7 +60,7 @@ def viewing(
         dataset: FeatureCameraDataset,
         device: str,
         port: int = 8080, bg_color=(0., 0., 0.)) -> None:
-    pca_weight, pca_bias = build_linear_for_visualization(dataset, gaussians=None, device=device)
+    pca_weight, pca_bias = pca_transform_params(dataset, n_components=3)
 
     server = viser.ViserServer(port=port, verbose=False)
     viewer = nerfview.Viewer(

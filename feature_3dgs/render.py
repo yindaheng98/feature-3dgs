@@ -1,6 +1,6 @@
 import os
 from typing import Tuple
-import numpy as np
+
 import torch
 import torch.nn.functional as F
 import torchvision
@@ -9,6 +9,7 @@ from gaussian_splatting.utils import psnr
 from feature_3dgs import SemanticGaussianModel, get_available_extractor_decoders
 from feature_3dgs.extractor import FeatureCameraDataset
 from feature_3dgs.prepare import prepare_dataset_and_decoder, prepare_gaussians
+from feature_3dgs.utils import pca_transform_params
 
 
 def prepare_rendering(
@@ -23,50 +24,6 @@ def prepare_rendering(
         decoder=decoder, sh_degree=sh_degree, source=source, device=device,
         trainable_camera=trainable_camera, load_ply=load_ply)
     return dataset, gaussians
-
-
-def build_linear_for_visualization(
-    dataset: FeatureCameraDataset,
-    gaussians: SemanticGaussianModel = None,
-    device: str = "cpu",
-) -> Tuple[torch.Tensor, torch.Tensor]:
-    """Fit PCA on feature maps and return ``(weight, bias)`` for ``F.linear``.
-
-    If *gaussians* is not ``None``, rendered (decoded) feature maps are used;
-    otherwise extractor outputs from the dataset are used.
-
-    Returns:
-        weight: ``(3, D)``
-        bias:   ``(3,)``
-    """
-    all_features = []
-
-    desc = ("Rendering" if gaussians is not None else "Extracting") + " features for PCA fitting"
-    for idx in tqdm(range(len(dataset)), dynamic_ncols=True, desc=desc):
-        if gaussians is not None:
-            camera = dataset.cameras[idx]  # base camera - skip feature extraction
-            out = gaussians(camera)
-            feature_map = out["feature_map"].cpu()  # (D, H, W)
-        else:
-            feature_map = dataset[idx].custom_data['feature_map'].cpu()  # (D, H, W)
-
-        D = feature_map.shape[0]
-        all_features.append(feature_map.reshape(D, -1).permute(1, 0))  # (H*W, D)
-
-    all_features_np = torch.cat(all_features, dim=0).numpy()  # (N_total, D)
-    del all_features
-
-    from sklearn.decomposition import PCA
-    pca = PCA(n_components=3, whiten=True)
-    pca.fit(all_features_np)
-    del all_features_np
-
-    components = pca.components_.copy()  # (n_components, D)
-    if pca.whiten:
-        components /= np.sqrt(pca.explained_variance_)[:, None]
-    weight = torch.from_numpy(components).float().to(device)
-    bias = torch.from_numpy(-pca.mean_ @ components.T).float().to(device)
-    return weight, bias
 
 
 def colorize_feature_map(
@@ -91,8 +48,7 @@ def colorize_feature_map(
 
 
 def rendering(dataset: FeatureCameraDataset, gaussians: SemanticGaussianModel, save: str) -> None:
-    device = gaussians.get_xyz.device
-    weight, bias = build_linear_for_visualization(dataset, gaussians=None, device=device)
+    weight, bias = pca_transform_params(dataset, n_components=3)
 
     os.makedirs(save, exist_ok=True)
     dataset.save_cameras(os.path.join(save, "cameras.json"))
