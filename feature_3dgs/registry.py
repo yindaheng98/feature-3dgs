@@ -1,11 +1,11 @@
 from typing import Tuple, Protocol
 
 from .extractor import AbstractFeatureExtractor
-from .decoder import AbstractFeatureDecoder
+from .decoder import AbstractTrainableFeatureDecoder
 
 
 class ExtractorDecoderFactory(Protocol):
-    def __call__(self, embed_dim: int, *args: object, **kwargs: object) -> tuple[AbstractFeatureExtractor, AbstractFeatureDecoder]: ...
+    def __call__(self, embed_dim: int, *args: object, **kwargs: object) -> tuple[AbstractFeatureExtractor, AbstractTrainableFeatureDecoder]: ...
 
 
 REGISTRY: dict[str, ExtractorDecoderFactory] = {}
@@ -23,7 +23,7 @@ def get_available_extractor_decoders() -> list[str]:
     return list(REGISTRY.keys())
 
 
-def build_extractor_decoder(name: str, embed_dim: int, **configs) -> Tuple[AbstractFeatureExtractor, AbstractFeatureDecoder]:
+def build_extractor_decoder(name: str, embed_dim: int, **configs) -> Tuple[AbstractFeatureExtractor, AbstractTrainableFeatureDecoder]:
     """Build an (Extractor, Decoder) pair by name."""
     if name not in REGISTRY:
         raise KeyError(

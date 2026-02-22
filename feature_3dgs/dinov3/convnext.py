@@ -2,7 +2,7 @@ import os
 from typing import Tuple
 
 from feature_3dgs.extractor import AbstractFeatureExtractor
-from feature_3dgs.decoder import AbstractFeatureDecoder
+from feature_3dgs.decoder import AbstractTrainableFeatureDecoder
 from feature_3dgs.registry import register_extractor_decoder
 
 from .extractor import DINOv3Extractor
@@ -82,7 +82,7 @@ CONVNEXT_FEATURE_DIMS = {
 
 
 def build_factory(version: str):
-    def factory(embed_dim: int, checkpoint_dir="checkpoints") -> Tuple[AbstractFeatureExtractor, AbstractFeatureDecoder]:
+    def factory(embed_dim: int, checkpoint_dir="checkpoints") -> Tuple[AbstractFeatureExtractor, AbstractTrainableFeatureDecoder]:
         extractor = DINOv3ConvNextExtractor(version, checkpoint_dir=checkpoint_dir)
         decoder = DINOv3LinearAvgDecoder(
             in_channels=embed_dim,
