@@ -12,7 +12,8 @@ class AbstractTrainableFeatureDecoder(AbstractFeatureDecoder):
     - ``parameters``: return trainable parameters to be optimised by the trainer.
     """
 
-    def init_semantic(self, gaussians: SemanticGaussianModel, dataset: FeatureCameraDataset):
+    @staticmethod
+    def init_semantic(gaussians: SemanticGaussianModel, dataset: FeatureCameraDataset):
         """Build the feature mapping from data (e.g. PCA). Called before training."""
         pass
 

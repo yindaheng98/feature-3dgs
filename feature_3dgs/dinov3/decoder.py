@@ -4,6 +4,7 @@ import torch.nn.functional as F
 
 from feature_3dgs.decoder import NoopFeatureDecoder
 from feature_3dgs.extractor import FeatureCameraDataset
+from feature_3dgs.gaussian_model import SemanticGaussianModel
 
 from .extractor import padding
 
@@ -86,7 +87,8 @@ class DINOv3LinearAvgDecoder(NoopFeatureDecoder):
         x = F.linear(x, combined_weight, combined_bias)        # (H*W, C_custom)
         return x.reshape(H, W, -1).permute(2, 0, 1)            # (C_custom, H, W)
 
-    def init(self, dataset: FeatureCameraDataset):
+    @staticmethod
+    def init_semantic(gaussians: SemanticGaussianModel, dataset: FeatureCameraDataset):
         """Initialise linear layer weights via PCA on the extractor features.
 
         Collects all feature vectors from the dataset, computes PCA, and
@@ -94,6 +96,7 @@ class DINOv3LinearAvgDecoder(NoopFeatureDecoder):
           - weight = top-k principal components  (out_channels, in_channels)
           - bias   = feature mean                (out_channels,)
         """
+        self: 'DINOv3LinearAvgDecoder' = gaussians.get_decoder
         weight, bias = dataset.pca_inverse_transform_params(
             n_components=self.linear.in_features, whiten=False)
         with torch.no_grad():
