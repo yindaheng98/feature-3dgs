@@ -1,7 +1,7 @@
 from typing import Tuple
 
 from feature_3dgs.extractor import AbstractFeatureExtractor
-from feature_3dgs.decoder import AbstractFeatureDecoder
+from feature_3dgs.decoder import AbstractTrainableFeatureDecoder
 from feature_3dgs.registry import register_extractor_decoder
 
 from .extractor import YOLOExtractor

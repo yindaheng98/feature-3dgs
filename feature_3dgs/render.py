@@ -21,7 +21,7 @@ def prepare_rendering(
         trainable_camera=trainable_camera, load_camera=load_camera,
         load_mask=load_mask, load_depth=False, configs=extractor_configs)
     gaussians = prepare_gaussians(
-        decoder=decoder, sh_degree=sh_degree, source=source, device=device,
+        decoder=decoder, sh_degree=sh_degree, source=source, dataset=dataset, device=device,
         trainable_camera=trainable_camera, load_ply=load_ply)
     return dataset, gaussians
 

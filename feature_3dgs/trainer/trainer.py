@@ -22,7 +22,6 @@ class SemanticTrainer(TrainerWrapper):
         model = self.model
         assert isinstance(model, SemanticGaussianModel), "SemanticTrainer's model must be a SemanticGaussianModel"
         self.optimizer.add_param_group({"lr": semantic_lr, "params": model._encoded_semantics, "name": "semantic"})
-        model.get_decoder.init(dataset)  # Init decoder before adding its parameters to the optimizer
         self.optimizer.add_param_group({"lr": semantic_decoder_lr_init, "params": model.get_decoder.parameters(), "name": "semantic_decoder"})
         self.schedulers['semantic_decoder'] = get_expon_lr_func(
             lr_init=semantic_decoder_lr_init,
