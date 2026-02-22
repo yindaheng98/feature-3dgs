@@ -65,19 +65,24 @@ class DINOv3LinearAvgDecoder(NoopFeatureDecoder):
         weight = self.linear.weight[:, :, None, None].expand(-1, -1, P, P) / (P * P)
         return F.conv2d(x.unsqueeze(0), weight, self.linear.bias, stride=P).squeeze(0)
 
-    def transform_feature_map_linear(self, feature_map: torch.Tensor,
-                                     weight: torch.Tensor,
-                                     bias: torch.Tensor = None) -> torch.Tensor:
-        """Reparameterized: merges ``self.linear`` and the custom linear into one.
+    def project_feature_map(
+            self, feature_map: torch.Tensor,
+            weight: torch.Tensor = None,
+            bias: torch.Tensor = None) -> torch.Tensor:
+        """Reparameterized per-pixel projection (spatial resolution preserved).
 
-        Combined linear:  weight_c = weight @ W1,  bias_c = weight @ b1 + bias
-        This avoids materialising the ``(H*W, C_out)`` intermediate.
+        When *weight* is given, fuses ``self.linear`` and the custom linear
+        into one:  weight_c = weight @ W1,  bias_c = weight @ b1 + bias,
+        avoiding the ``(H*W, C_out)`` intermediate.
+        When *weight* is None, applies ``self.linear`` per pixel directly.
         """
-        combined_weight = weight @ self.linear.weight          # (C_custom, C_in)
+        combined_weight = self.linear.weight
+        if weight is not None:
+            combined_weight = weight @ self.linear.weight         # (C_custom, C_in)
         combined_bias = F.linear(self.linear.bias, weight, bias)  # (C_custom,)
 
         C, H, W = feature_map.shape
-        x = feature_map.permute(1, 2, 0).reshape(-1, C)       # (H*W, C_in)
+        x = feature_map.permute(1, 2, 0).reshape(-1, C)        # (H*W, C_in)
         x = F.linear(x, combined_weight, combined_bias)        # (H*W, C_custom)
         return x.reshape(H, W, -1).permute(2, 0, 1)            # (C_custom, H, W)
 

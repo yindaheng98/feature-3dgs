@@ -8,26 +8,19 @@ class AbstractFeatureDecoder(ABC):
     """Feature decoder that bridges encoded Gaussian semantics and extractor
     feature space.  Provides three core operations:
 
-    - ``init``: build the feature mapping from a dataset (e.g. PCA on
-      extractor outputs).  Doubles as a quick visualisation mapping.
     - ``transform_features``: per-point mapping ``(N, C_in) -> (N, C_out)``,
       applicable directly to per-Gaussian encoded semantics.
     - ``transform_feature_map``: convert a full rendered feature map
       ``(C_in, H, W)`` into extractor output format ``(C_out, H', W')``,
-      matching both channel dimension and spatial resolution.
-
-    ``transform_feature_map`` has a default implementation that applies
-    ``transform_features`` per pixel (no spatial change).  Subclasses may
-    override it with reparameterized, memory-efficient implementations —
-    e.g. a single Conv2d whose weights are derived from the linear layer,
-    combining the per-point mapping and spatial downsampling without
-    materialising a large intermediate tensor.
-
-    ``transform_feature_map_linear`` extends the pipeline with a custom
-    linear projection appended after ``transform_features``.  It keeps
-    the original spatial resolution (no downsampling), making it suitable
-    for producing full-resolution feature maps with arbitrary output
-    dimensions — e.g. a 3-channel PCA projection for visualisation.
+      matching both channel dimension and spatial resolution.  Subclasses
+      may override it with reparameterized, memory-efficient implementations
+      — e.g. a single Conv2d that fuses per-point mapping and spatial
+      downsampling without materialising a large intermediate tensor.
+    - ``project_feature_map``: per-pixel projection that applies
+      ``transform_features`` and optionally a custom linear layer
+      (``weight`` / ``bias``), always preserving the original spatial
+      resolution.  Useful for producing full-resolution feature maps with
+      arbitrary output dimensions — e.g. a 3-channel PCA visualisation.
     """
 
     def init(self, dataset: FeatureCameraDataset):
@@ -55,27 +48,29 @@ class AbstractFeatureDecoder(ABC):
         x = self.transform_features(x)                    # (H*W, C_out)
         return x.reshape(H, W, -1).permute(2, 0, 1)       # (C_out, H, W)
 
-    def transform_feature_map_linear(self, feature_map: torch.Tensor,
-                                     weight: torch.Tensor,
-                                     bias: torch.Tensor = None) -> torch.Tensor:
-        """Apply transform_features then a custom linear projection per pixel.
+    def project_feature_map(self, feature_map: torch.Tensor,
+                            weight: torch.Tensor = None,
+                            bias: torch.Tensor = None) -> torch.Tensor:
+        """Per-pixel feature projection (spatial resolution preserved).
 
-        Like ``transform_feature_map`` but appends ``F.linear(x, weight, bias)``
-        and keeps the original spatial resolution (no downsampling).
+        Applies ``transform_features`` to every pixel, then optionally a
+        custom linear layer ``F.linear(x, weight, bias)``.
 
         Args:
             feature_map: (C_in, H, W)
-            weight: (C_custom, C_out) linear weight.
-            bias:   (C_custom,) or None.
+            weight: (C_proj, C_out) or None.  Skipped when None.
+            bias:   (C_proj,) or None.
 
         Returns:
-            (C_custom, H, W) at the original spatial resolution.
+            (C_out, H, W) when weight is None,
+            (C_proj, H, W) when weight is given.
         """
         C, H, W = feature_map.shape
         x = feature_map.permute(1, 2, 0).reshape(-1, C)  # (H*W, C_in)
         x = self.transform_features(x)                    # (H*W, C_out)
-        x = F.linear(x, weight, bias)                     # (H*W, C_custom)
-        return x.reshape(H, W, -1).permute(2, 0, 1)       # (C_custom, H, W)
+        if weight is not None:
+            x = F.linear(x, weight, bias)                  # (H*W, C_proj)
+        return x.reshape(H, W, -1).permute(2, 0, 1)
 
     def __call__(self, feature_map: torch.Tensor) -> torch.Tensor:
         return self.transform_feature_map(feature_map)

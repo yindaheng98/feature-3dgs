@@ -143,7 +143,7 @@ class SemanticGaussianModel(GaussianModel):
             shs=self.get_features,
             semantic_features=self.get_encoded_semantics,
         )
-        out['feature_map'] = self._decoder.transform_feature_map_linear(out['feature_map'], weight=weight, bias=bias)
+        out['feature_map'] = self._decoder.project_feature_map(out['feature_map'], weight=weight, bias=bias)
         return out
 
     def init_encoded_semantics(self):
