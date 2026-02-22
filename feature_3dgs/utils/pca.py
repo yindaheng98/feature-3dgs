@@ -48,6 +48,28 @@ def pca_inverse_transform_params(
     return V.to(device), mean.to(device)
 
 
+def pca_inverse_transform_params_to_transform_params(weight: torch.Tensor, bias: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """Convert PCA inverse_transform parameters to transform parameters.
+
+    Given ``(weight, bias)`` returned by :func:`pca_inverse_transform_params`,
+    returns ``(weight_proj, bias_proj)`` usable as ``nn.Linear(D, n_components)``
+    weights, so that ``F.linear(x, weight_proj, bias_proj)`` produces the same
+    latent codes as :func:`pca_transform_params` would.
+
+    Returns:
+        weight_proj: ``(n_components, D)``
+        bias_proj:   ``(n_components,)``
+    """
+    W_dec, mean = weight, bias          # (D, k), (D,)
+
+    sigma_sq = (W_dec ** 2).sum(dim=0)                              # (k,)
+    W_proj = W_dec / sigma_sq                                       # (D, k)
+
+    weight = W_proj.T                                               # (k, D)
+    bias = -(mean @ W_proj)                                         # (k,)
+    return weight, bias
+
+
 def pca_transform_params(
     cameras: Sequence[Camera],
     n_components: int = 3,
@@ -71,10 +93,4 @@ def pca_transform_params(
         bias:   ``(n_components,)``
     """
     W_dec, mean = pca_inverse_transform_params(cameras, n_components, whiten=whiten)
-
-    sigma_sq = (W_dec ** 2).sum(dim=0)                              # (k,)
-    W_proj = W_dec / sigma_sq                                       # (D, k)
-
-    weight = W_proj.T                                               # (k, D)
-    bias = -(mean @ W_proj)                                         # (k,)
-    return weight, bias
+    return pca_inverse_transform_params_to_transform_params(W_dec, mean)
