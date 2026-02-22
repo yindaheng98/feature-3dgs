@@ -2,6 +2,7 @@ data
 output
 *.dist-info
 feature_3dgs/diff_gaussian_rasterization
+feature_3dgs/utils/featurefusion
 gaussian_splatting
 checkpoints
 
