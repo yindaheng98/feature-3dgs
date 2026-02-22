@@ -1,4 +1,3 @@
-import tqdm
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -90,27 +89,12 @@ class DINOv3LinearAvgDecoder(NoopFeatureDecoder):
           - weight = top-k principal components  (out_channels, in_channels)
           - bias   = feature mean                (out_channels,)
         """
-        # Collect all extractor feature vectors  -> (total_pixels, D)
-        all_features = []
-        for idx in tqdm.tqdm(range(len(dataset)), desc="PCA init: collecting features"):
-            feature_map = dataset[idx].custom_data['feature_map']  # (D, H_p, W_p)
-            features = feature_map.reshape(feature_map.shape[0], -1).T  # (N_i, D)
-            all_features.append(features.cpu())
-        all_features = torch.cat(all_features, dim=0).float()  # (N_total, D)
-
-        # PCA
-        mean = all_features.mean(dim=0)                        # (D,)
-        centered = all_features - mean
-        _, _, V = torch.pca_lowrank(centered, q=self.linear.in_features)
-        # V: (D, k) = (out_channels, in_channels)
-
-        # nn.Linear computes: output = input @ weight.T + bias
-        # PCA reconstruction: Z @ V.T + mean ≈ original
-        # So weight = V, bias = mean
+        weight, bias = dataset.pca_inverse_transform_params(
+            n_components=self.linear.in_features, whiten=False)
         with torch.no_grad():
             device = self.linear.weight.device
-            self.linear.weight.copy_(V.to(device))
-            self.linear.bias.copy_(mean.to(device))
+            self.linear.weight.copy_(weight.to(device))
+            self.linear.bias.copy_(bias.to(device))
 
     # ------------------------------------------------------------------
     # Persistence & utilities

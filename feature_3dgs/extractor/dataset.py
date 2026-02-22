@@ -1,8 +1,10 @@
 import tqdm
+import torch
 from gaussian_splatting import Camera
 from gaussian_splatting.dataset import CameraDataset, TrainableCameraDataset
 
 from .abc import AbstractFeatureExtractor
+from feature_3dgs.utils import pca_inverse_transform_params
 
 
 class FeatureCameraDataset(CameraDataset):
@@ -48,6 +50,18 @@ class FeatureCameraDataset(CameraDataset):
             _ = self[idx]
             del _
         del self.extractor
+
+    def pca_inverse_transform_params(self, n_components: int, whiten: bool = False) -> tuple[torch.Tensor, torch.Tensor]:
+        """Return PCA inverse_transform ``(weight, bias)``.
+
+        Usable as ``nn.Linear(n_components, D)`` weights so that
+        ``z @ weight.T + bias`` reconstructs the original features.
+
+        Returns:
+            weight: ``(D, n_components)``
+            bias:   ``(D,)``
+        """
+        return pca_inverse_transform_params(self, n_components, whiten=whiten, cache_device=self.cache_device)
 
 
 class TrainableFeatureCameraDataset(FeatureCameraDataset):
