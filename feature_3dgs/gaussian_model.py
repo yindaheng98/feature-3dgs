@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from gaussian_splatting import GaussianModel, Camera, CameraTrainableGaussianModel
-from feature_3dgs.diff_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
+from .diff_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
 
 
 class AbstractFeatureDecoder(ABC):
