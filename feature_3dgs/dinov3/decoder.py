@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+from gaussian_splatting import Camera
 from feature_3dgs.decoder import NoopFeatureDecoder
 from feature_3dgs.extractor import FeatureCameraDataset
 from feature_3dgs.gaussian_model import SemanticGaussianModel
@@ -67,6 +67,20 @@ class DINOv3LinearAvgDecoder(NoopFeatureDecoder):
         # Derive conv kernel from linear weights
         weight = self.linear.weight[:, :, None, None].expand(-1, -1, P, P) / (P * P)
         return F.conv2d(x.unsqueeze(0), weight, self.linear.bias, stride=P).squeeze(0)
+
+    def transform_feature_map_inverse(self, feature_map: torch.Tensor, camera: Camera) -> torch.Tensor:
+        """Inverse of transform_feature_map: (C_feat, H_p, W_p) -> (C_enc, H, W).
+
+        Applies the pseudo-inverse of ``self.linear`` to reverse the channel
+        mapping, then upsampling to restore full spatial
+        resolution.  This gives a per-pixel target in the encoded space so the
+        trainer can compute a smoothness loss that is not subject to the
+        information loss of avg-pooling.
+        """
+        W_pinv = torch.linalg.pinv(self.linear.weight)     # (C_enc, C_feat)
+        x = feature_map - self.linear.bias.view(-1, 1, 1)
+        x = F.conv2d(x.unsqueeze(0), W_pinv[:, :, None, None]).squeeze(0)
+        return F.interpolate(x.unsqueeze(0), size=(camera.image_height, camera.image_width), mode='bilinear').squeeze(0)
 
     def project_feature_map(
             self, feature_map: torch.Tensor,

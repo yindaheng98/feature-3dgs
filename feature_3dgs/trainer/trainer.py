@@ -16,6 +16,7 @@ class SemanticTrainer(TrainerWrapper):
             semantic_decoder_lr_delay_mult=0.01,
             semantic_decoder_lr_max_steps=30_000,
             semantic_loss_weight=1.0,
+            semantic_smooth_weight=0.2,
             semantic_mask_mode="none",
     ):
         super().__init__(base_trainer=base_trainer)
@@ -30,6 +31,7 @@ class SemanticTrainer(TrainerWrapper):
             max_steps=semantic_decoder_lr_max_steps,
         )
         self.semantic_loss_weight = semantic_loss_weight
+        self.semantic_smooth_weight = semantic_smooth_weight
         self.mask_mode = semantic_mask_mode
 
     def loss(self, out: dict, camera: Camera) -> torch.Tensor:
@@ -47,7 +49,14 @@ class SemanticTrainer(TrainerWrapper):
             case _:
                 raise ValueError(f"Unknown mask policy: {self.mask_mode}")
         semantic_loss = l1_loss(render, gt)
-        return loss + semantic_loss * self.semantic_loss_weight
+
+        smooth_loss = 0
+        encoded = out['feature_map_encoded']
+        if gt.shape[1:] != encoded.shape[1:]:
+            gt_encoded = self.model.get_decoder.transform_feature_map_inverse(camera.custom_data['feature_map'], camera)
+            smooth_loss = l1_loss(encoded, gt_encoded)
+
+        return loss + semantic_loss * self.semantic_loss_weight + smooth_loss * self.semantic_smooth_weight
 
 
 def SemanticTrainerWrapper(
@@ -61,6 +70,8 @@ def SemanticTrainerWrapper(
         semantic_decoder_lr_delay_mult=0.01,
         semantic_decoder_lr_max_steps=30_000,
         semantic_loss_weight=1.0,
+        semantic_smooth_weight=0.2,
+        semantic_mask_mode="none",
         **configs) -> SemanticTrainer:
     return SemanticTrainer(
         base_trainer=base_trainer_constructor(model, dataset, *args, **configs),
@@ -71,6 +82,8 @@ def SemanticTrainerWrapper(
         semantic_decoder_lr_delay_mult=semantic_decoder_lr_delay_mult,
         semantic_decoder_lr_max_steps=semantic_decoder_lr_max_steps,
         semantic_loss_weight=semantic_loss_weight,
+        semantic_smooth_weight=semantic_smooth_weight,
+        semantic_mask_mode=semantic_mask_mode,
     )
 
 
