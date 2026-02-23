@@ -11,10 +11,19 @@ class AbstractFeatureDecoder(ABC):
     """Feature decoder that bridges encoded Gaussian semantics and extractor
     feature space.  Provides three core operations:
 
-    - ``transform_features``: per-point mapping ``(N, C_in) -> (N, C_out)``,
+    Terminology
+    -----------
+    - **C_enc** — channel dimension of the *encoded* (compact) representation
+      stored per Gaussian and produced by rasterisation.
+    - **C_feat** — channel dimension of the *decoded* feature, which matches
+      the ground-truth extractor output (e.g. DINOv2 feature dim).
+
+    Operations
+    ----------
+    - ``transform_features``: per-point decoding ``(N, C_enc) -> (N, C_feat)``,
       applicable directly to per-Gaussian encoded semantics.
     - ``transform_feature_map``: convert a full rendered feature map
-      ``(C_in, H, W)`` into extractor output format ``(C_out, H', W')``,
+      ``(C_enc, H, W)`` into extractor output format ``(C_feat, H', W')``,
       matching both channel dimension and spatial resolution.  Subclasses
       may override it with reparameterized, memory-efficient implementations
       — e.g. a single Conv2d that fuses per-point mapping and spatial
@@ -27,7 +36,7 @@ class AbstractFeatureDecoder(ABC):
     """
 
     def transform_features(self, features: torch.Tensor) -> torch.Tensor:
-        """Per-point feature transform: (N, C_in) -> (N, C_out)."""
+        """Per-point decoding: (N, C_enc) -> (N, C_feat)."""
         return features
 
     def transform_feature_map(self, feature_map: torch.Tensor) -> torch.Tensor:
@@ -37,36 +46,36 @@ class AbstractFeatureDecoder(ABC):
         Subclasses may override for fused spatial downsampling.
 
         Args:
-            feature_map: (C_in, H, W)
+            feature_map: (C_enc, H, W) — encoded (rasterised) feature map.
 
         Returns:
-            (C_out, H', W') matching extractor output.
+            (C_feat, H', W') matching extractor ground-truth output.
         """
         C, H, W = feature_map.shape
-        x = feature_map.permute(1, 2, 0).reshape(-1, C)  # (H*W, C_in)
-        x = self.transform_features(x)                    # (H*W, C_out)
-        return x.reshape(H, W, -1).permute(2, 0, 1)       # (C_out, H, W), you can override to change spatial resolution as well
+        x = feature_map.permute(1, 2, 0).reshape(-1, C)  # (H*W, C_enc)
+        x = self.transform_features(x)                    # (H*W, C_feat)
+        return x.reshape(H, W, -1).permute(2, 0, 1)       # (C_feat, H, W), override to change spatial resolution as well
 
     def project_feature_map(self, feature_map: torch.Tensor,
                             weight: torch.Tensor = None,
                             bias: torch.Tensor = None) -> torch.Tensor:
         """Per-pixel feature projection (spatial resolution preserved).
 
-        Applies ``transform_features`` to **every pixel**, then optionally a
-        custom linear layer ``F.linear(x, weight, bias)``.
+        Applies ``transform_features`` (decode) to **every pixel**, then
+        optionally a custom linear layer ``F.linear(x, weight, bias)``.
 
         Args:
-            feature_map: (C_in, H, W)
-            weight: (C_proj, C_out) or None.  Skipped when None.
+            feature_map: (C_enc, H, W) — encoded (rasterised) feature map.
+            weight: (C_proj, C_feat) or None.  Skipped when None.
             bias:   (C_proj,) or None.
 
         Returns:
-            (C_out, H, W) when weight is None,
+            (C_feat, H, W) when weight is None,
             (C_proj, H, W) when weight is given.
         """
         C, H, W = feature_map.shape
-        x = feature_map.permute(1, 2, 0).reshape(-1, C)  # (H*W, C_in)
-        x = self.transform_features(x)                    # (H*W, C_out)
+        x = feature_map.permute(1, 2, 0).reshape(-1, C)  # (H*W, C_enc)
+        x = self.transform_features(x)                    # (H*W, C_feat)
         if weight is not None:
             x = F.linear(x, weight, bias)                  # (H*W, C_proj)
         return x.reshape(H, W, -1).permute(2, 0, 1)
@@ -118,7 +127,7 @@ class SemanticGaussianModel(GaussianModel):
         extractor output.
 
         Returns:
-            (N, C_out) tensor in the extractor's feature space.
+            (N, C_feat) tensor in the extractor's feature space.
         """
         return self._decoder.transform_features(self._encoded_semantics)
 
