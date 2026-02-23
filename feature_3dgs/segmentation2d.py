@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from feature_3dgs import get_available_extractor_decoders
 from feature_3dgs.extractor import FeatureCameraDataset
-from feature_3dgs.render import prepare_rendering, rendering
+from feature_3dgs.render import prepare_rendering
 
 
 def get_feature(dataset: FeatureCameraDataset, image_index: int, x: int, y: int) -> torch.Tensor:
@@ -129,5 +129,3 @@ if __name__ == "__main__":
         plt.show()
 
         save_segmentation(dataset, feature, args.threshold, save)
-
-        rendering(dataset, gaussians, save)
