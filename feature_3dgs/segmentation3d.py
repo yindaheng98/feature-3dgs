@@ -100,6 +100,7 @@ def save_segmented_ply(gaussians: SemanticGaussianModel, mask: torch.Tensor, pat
     seg._scaling = nn.Parameter(gaussians._scaling.detach()[m])
     seg._rotation = nn.Parameter(gaussians._rotation.detach()[m])
     seg._encoded_semantics = nn.Parameter(gaussians._encoded_semantics.detach()[m])
+    seg._decoder = gaussians._decoder
     seg.active_sh_degree = gaussians.active_sh_degree
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
