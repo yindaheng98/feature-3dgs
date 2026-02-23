@@ -145,6 +145,32 @@
             ]
         },
         {
+            "name": "segmentation",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "feature_3dgs.segmentation",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--name",
+                "dinov3_vitl16",
+                "--embed_dim",
+                "32",
+                "-s",
+                "data/truck",
+                "-d",
+                "output/truck-semantic",
+                "-i",
+                "30000",
+                "--load_camera",
+                "output/truck-semantic/cameras.json",
+                "-n0",
+                "-x377",
+                "-y236",
+                "-t0.5",
+            ]
+        },
+        {
             "name": "viewer",
             "type": "debugpy",
             "request": "launch",
