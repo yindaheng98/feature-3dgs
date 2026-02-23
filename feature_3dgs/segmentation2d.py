@@ -107,7 +107,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--threshold", required=True, type=float)
     args = parser.parse_args()
     load_ply = os.path.join(args.destination, "point_cloud", "iteration_" + str(args.iteration), "point_cloud.ply")
-    save = os.path.join(args.destination, "ours_{}".format(args.iteration), f"segmentation{args.image_index:05d}x{args.x}y{args.y}t{args.threshold:.2f}")
+    save = os.path.join(args.destination, "ours_{}".format(args.iteration), f"segmentation2d{args.image_index:05d}x{args.x}y{args.y}t{args.threshold:.2f}")
     extractor_configs = {o.split("=", 1)[0]: eval(o.split("=", 1)[1]) for o in args.option_extractor}
     with torch.no_grad():
         dataset, gaussians = prepare_rendering(
