@@ -16,7 +16,7 @@ class SemanticTrainer(TrainerWrapper):
             semantic_decoder_lr_delay_mult=0.01,
             semantic_decoder_lr_max_steps=30_000,
             semantic_loss_weight=1.0,
-            semantic_smooth_weight=0.2,
+            semantic_smooth_weight=0.1,
             semantic_mask_mode="none",
     ):
         super().__init__(base_trainer=base_trainer)
@@ -70,7 +70,7 @@ def SemanticTrainerWrapper(
         semantic_decoder_lr_delay_mult=0.01,
         semantic_decoder_lr_max_steps=30_000,
         semantic_loss_weight=1.0,
-        semantic_smooth_weight=0.2,
+        semantic_smooth_weight=0.1,
         semantic_mask_mode="none",
         **configs) -> SemanticTrainer:
     return SemanticTrainer(
