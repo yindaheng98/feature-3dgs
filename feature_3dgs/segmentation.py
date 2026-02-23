@@ -3,6 +3,7 @@ import os
 import torch
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 from feature_3dgs import get_available_extractor_decoders
 from feature_3dgs.extractor import FeatureCameraDataset
 from feature_3dgs.render import prepare_rendering, rendering
@@ -39,17 +40,25 @@ def segment_image(image: torch.Tensor, similarity: torch.Tensor, threshold: floa
     return out
 
 
-def show_segmentation(image: torch.Tensor, similarity: torch.Tensor, segmented: torch.Tensor, x: int, y: int, threshold: float) -> None:
-    """Show selected image, cosine similarity heatmap with red cross, and segmented image."""
-    fig, axes = plt.subplots(1, 3, figsize=(12, 4), dpi=150)
+def show_segmentation(
+        fig: plt.Figure,
+        image: torch.Tensor, similarity: torch.Tensor, segmented: torch.Tensor,
+        threshold: float, x: int = None, y: int = None,
+) -> plt.Figure:
+    """Draw original image, cosine similarity heatmap, and segmented image onto *fig*.
+
+    Returns *fig* so the caller can ``plt.show()`` or ``fig.savefig()``.
+    """
+    axes = fig.subplots(1, 3)
 
     axes[0].imshow(image.permute(1, 2, 0).cpu().clamp(0, 1).numpy())
     axes[0].set_title("Selected Image")
     axes[0].axis("off")
 
     H, W = image.shape[1], image.shape[2]
-    im = axes[1].imshow(similarity.cpu().numpy(), cmap='viridis', vmin=-1, vmax=1, extent=[0, W, H, 0])
-    axes[1].plot(x, y, 'r+', markersize=20, markeredgewidth=3)
+    axes[1].imshow(similarity.cpu().numpy(), cmap='viridis', vmin=-1, vmax=1, extent=[0, W, H, 0])
+    if x is not None and y is not None:
+        axes[1].plot(x, y, 'r+', markersize=20, markeredgewidth=3)
     axes[1].set_title("Cosine Similarity Heatmap")
     axes[1].axis("off")
 
@@ -58,7 +67,23 @@ def show_segmentation(image: torch.Tensor, similarity: torch.Tensor, segmented: 
     axes[2].axis("off")
 
     fig.tight_layout()
-    plt.show()
+    return fig
+
+
+def save_segmentation(dataset: FeatureCameraDataset, query: torch.Tensor, threshold: float, save_dir: str) -> None:
+    """Save cosine-similarity heatmaps and segmented images for every dataset image."""
+    os.makedirs(save_dir, exist_ok=True)
+
+    for idx in tqdm(range(len(dataset)), desc="Saving 2D segmentation"):
+        camera = dataset[idx]
+        sim = compute_similarity_map(query, camera.custom_data['feature_map'])
+        img = camera.ground_truth_image
+        img_seg = segment_image(img, sim, threshold)
+
+        fig = plt.figure(figsize=(12, 4), dpi=150)
+        show_segmentation(fig, img, sim, img_seg, threshold)
+        fig.savefig(os.path.join(save_dir, f"{idx:05d}.png"), bbox_inches="tight", pad_inches=0.05)
+        plt.close(fig)
 
 
 if __name__ == "__main__":
@@ -82,7 +107,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--threshold", required=True, type=float)
     args = parser.parse_args()
     load_ply = os.path.join(args.destination, "point_cloud", "iteration_" + str(args.iteration), "point_cloud.ply")
-    save = os.path.join(args.destination, "ours_{}".format(args.iteration))
+    save = os.path.join(args.destination, "ours_{}".format(args.iteration), f"segmentation{args.image_index:05d}x{args.x}y{args.y}t{args.threshold:.2f}")
     extractor_configs = {o.split("=", 1)[0]: eval(o.split("=", 1)[1]) for o in args.option_extractor}
     with torch.no_grad():
         dataset, gaussians = prepare_rendering(
@@ -98,6 +123,11 @@ if __name__ == "__main__":
         similarity_map = compute_similarity_map(feature, dataset[args.image_index].custom_data['feature_map'])
         img = dataset[args.image_index].ground_truth_image  # (3, H, W)
         img_seg = segment_image(img, similarity_map, args.threshold)
-        show_segmentation(img, similarity_map, img_seg, args.x, args.y, args.threshold)
+
+        fig = plt.figure(figsize=(12, 4), dpi=150)
+        show_segmentation(fig, img, similarity_map, img_seg, args.threshold, args.x, args.y)
+        plt.show()
+
+        save_segmentation(dataset, feature, args.threshold, save)
 
         rendering(dataset, gaussians, save)
