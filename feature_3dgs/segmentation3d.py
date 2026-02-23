@@ -107,15 +107,17 @@ def save_segmented_ply(gaussians: SemanticGaussianModel, mask: torch.Tensor, pat
     print(f"Saved {int(mask.sum())} / {mask.shape[0]} points to {path}")
 
 
-def save_segmentation(gaussians: SemanticGaussianModel, dataset: FeatureCameraDataset, query: torch.Tensor, threshold: float, save_dir: str, save_ply: str) -> None:
+def save_segmentation(gaussians: SemanticGaussianModel, dataset: FeatureCameraDataset, query: torch.Tensor, threshold: float, save_dir: str, iteration: int) -> None:
     """Render the 3D model from every dataset viewpoint and save."""
     os.makedirs(save_dir, exist_ok=True)
 
     sim_3d = compute_3d_similarity(query, gaussians)
     heatmap_colors = similarity_to_colors(sim_3d).to(gaussians.get_xyz.device)
     mask_3d = sim_3d > threshold
-    masked_opacity = gaussians.get_opacity.clone()
-    masked_opacity[~mask_3d] = 0.0
+    seg_opacity = gaussians.get_opacity.clone()
+    seg_opacity[~mask_3d] = 0.0
+    rest_opacity = gaussians.get_opacity.clone()
+    rest_opacity[mask_3d] = 0.0
 
     for idx in tqdm(range(len(dataset)), desc="Rendering 3D segmentation"):
         camera = dataset[idx]
@@ -123,10 +125,14 @@ def save_segmentation(gaussians: SemanticGaussianModel, dataset: FeatureCameraDa
         img_heatmap = render_heatmap(gaussians, camera, heatmap_colors)
         torchvision.utils.save_image(img_heatmap, os.path.join(save_dir, f"{idx:05d}_3d_heatmap.png"))
 
-        img_seg = render_segmented(gaussians, camera, masked_opacity)
+        img_seg = render_segmented(gaussians, camera, seg_opacity)
         torchvision.utils.save_image(img_seg, os.path.join(save_dir, f"{idx:05d}_3d_segmented.png"))
 
-    save_segmented_ply(gaussians, mask_3d, save_ply)
+        img_rest = render_segmented(gaussians, camera, rest_opacity)
+        torchvision.utils.save_image(img_rest, os.path.join(save_dir, f"{idx:05d}_3d_rest.png"))
+
+    save_segmented_ply(gaussians, mask_3d, os.path.join(save, "segmented", "point_cloud", "iteration_" + str(iteration), "point_cloud.ply"))
+    save_segmented_ply(gaussians, ~mask_3d, os.path.join(save, "rest", "point_cloud", "iteration_" + str(iteration), "point_cloud.ply"))
 
 
 if __name__ == "__main__":
@@ -163,5 +169,4 @@ if __name__ == "__main__":
             extractor_configs=extractor_configs,
         )
         feature = get_feature(dataset, args.image_index, args.x, args.y)
-        save_ply = os.path.join(save, "point_cloud", "iteration_" + str(args.iteration), "point_cloud.ply")
-        save_segmentation(gaussians, dataset, feature, args.threshold, save, save_ply)
+        save_segmentation(gaussians, dataset, feature, args.threshold, save, args.iteration)

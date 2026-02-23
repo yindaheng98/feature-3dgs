@@ -272,7 +272,8 @@
             "justMyCode": false,
             "args": [
                 "-d",
-                "output/truck-semantic/ours_30000/segmentation00000x377y236t0.50",
+                "output/truck-semantic/ours_30000/segmentation00000x377y236t0.50/segmented",
+                // "output/truck-semantic/ours_30000/segmentation00000x377y236t0.50/rest",
                 "-i",
                 "30000",
                 "--port",
