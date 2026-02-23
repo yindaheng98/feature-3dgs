@@ -45,15 +45,14 @@ def feature_fusion_alpha_avg(
         if feature_map is None:
             continue
 
-        C_ext, H, W = feature_map.shape
-        fm = feature_map.permute(1, 2, 0).reshape(-1, C_ext)   # (H*W, C_ext)
-        fm = F.linear(fm, weight, bias)                          # (H*W, C_encoded)
-        fm = fm.reshape(H, W, -1)        # (C_encoded, H, W)
+        C_ext, height, width = feature_map.shape
+        fm = feature_map.permute(1, 2, 0).reshape(-1, C_ext)  # (H*W, C_ext)
+        fm = F.linear(fm, weight, bias)                       # (H*W, C_encoded)
+        fm = fm.reshape(height, width, -1)                    # (C_encoded, H, W)
 
-        target_H, target_W = int(camera.image_height), int(camera.image_width)
-        if H != target_H or W != target_W:
-            fm = F.interpolate(fm.permute(2, 0, 1).unsqueeze(0), size=(target_H, target_W),
-                               mode='bilinear', align_corners=False).squeeze(0).permute(1, 2, 0)
+        target_height, target_width = int(camera.image_height), int(camera.image_width)
+        if height != target_height or width != target_width:
+            fm = F.interpolate(fm.permute(2, 0, 1).unsqueeze(0), size=(target_height, target_width), mode='bilinear', align_corners=False).squeeze(0).permute(1, 2, 0)
 
         _, features, features_alpha, _, features_idx = feature_fusion(
             gaussians, camera, fm, fusion_alpha_threshold,
