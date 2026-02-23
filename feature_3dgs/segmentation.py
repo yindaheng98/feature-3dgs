@@ -2,14 +2,13 @@ import os
 
 import torch
 import torch.nn.functional as F
+import matplotlib.pyplot as plt
 from feature_3dgs import get_available_extractor_decoders
 from feature_3dgs.extractor import FeatureCameraDataset
 from feature_3dgs.render import prepare_rendering, rendering
 
 
-def get_feature(
-        dataset: FeatureCameraDataset, image_index: int, x: int, y: int,
-) -> torch.Tensor:
+def get_feature(dataset: FeatureCameraDataset, image_index: int, x: int, y: int) -> torch.Tensor:
     """Extract the feature vector at pixel (x, y) from the GT feature map.
 
     The GT feature map is at patch resolution (D, H_p, W_p); pixel coordinates
@@ -21,6 +20,45 @@ def get_feature(
     grid = torch.tensor([[[[2.0 * x / (camera.image_width - 1) - 1.0, 2.0 * y / (camera.image_height - 1) - 1.0]]]], device=feature_map.device)
     feature = F.grid_sample(feature_map.unsqueeze(0), grid, mode='nearest', align_corners=True).squeeze(0)
     return feature.squeeze(-1).squeeze(-1)
+
+
+def compute_similarity_map(query: torch.Tensor, feature_map: torch.Tensor) -> torch.Tensor:
+    """Per-patch cosine similarity between *query* (D,) and *feature_map* (D, H_p, W_p)."""
+    D, H_p, W_p = feature_map.shape
+    features = feature_map.reshape(D, -1).T
+    sim = F.cosine_similarity(query.unsqueeze(0), features, dim=1)
+    return sim.reshape(H_p, W_p)
+
+
+def segment_image(image: torch.Tensor, similarity: torch.Tensor, threshold: float) -> torch.Tensor:
+    """Mask out pixels whose similarity is below *threshold*. Returns (3, H, W)."""
+    H, W = image.shape[1], image.shape[2]
+    sim_full = F.interpolate(similarity.unsqueeze(0).unsqueeze(0), size=(H, W), mode='bilinear', align_corners=False).squeeze(0).squeeze(0)
+    out = image.clone()
+    out[:, sim_full < threshold] = 0
+    return out
+
+
+def show_segmentation(image: torch.Tensor, similarity: torch.Tensor, segmented: torch.Tensor, x: int, y: int, threshold: float) -> None:
+    """Show selected image, cosine similarity heatmap with red cross, and segmented image."""
+    fig, axes = plt.subplots(1, 3, figsize=(12, 4), dpi=150)
+
+    axes[0].imshow(image.permute(1, 2, 0).cpu().clamp(0, 1).numpy())
+    axes[0].set_title("Selected Image")
+    axes[0].axis("off")
+
+    H, W = image.shape[1], image.shape[2]
+    im = axes[1].imshow(similarity.cpu().numpy(), cmap='viridis', vmin=-1, vmax=1, extent=[0, W, H, 0])
+    axes[1].plot(x, y, 'r+', markersize=20, markeredgewidth=3)
+    axes[1].set_title("Cosine Similarity Heatmap")
+    axes[1].axis("off")
+
+    axes[2].imshow(segmented.permute(1, 2, 0).cpu().clamp(0, 1).numpy())
+    axes[2].set_title(f"Segmented (threshold={threshold:.2f})")
+    axes[2].axis("off")
+
+    fig.tight_layout()
+    plt.show()
 
 
 if __name__ == "__main__":
@@ -55,5 +93,11 @@ if __name__ == "__main__":
             load_ply=load_ply, load_camera=args.load_camera,
             load_mask=not args.no_image_mask,
             extractor_configs=extractor_configs)
+
         feature = get_feature(dataset, args.image_index, args.x, args.y)
+        similarity_map = compute_similarity_map(feature, dataset[args.image_index].custom_data['feature_map'])
+        img = dataset[args.image_index].ground_truth_image  # (3, H, W)
+        img_seg = segment_image(img, similarity_map, args.threshold)
+        show_segmentation(img, similarity_map, img_seg, args.x, args.y, args.threshold)
+
         rendering(dataset, gaussians, save)
