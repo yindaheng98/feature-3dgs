@@ -145,10 +145,10 @@
             ]
         },
         {
-            "name": "segmentation",
+            "name": "segmentation 2d",
             "type": "debugpy",
             "request": "launch",
-            "module": "feature_3dgs.segmentation",
+            "module": "feature_3dgs.segmentation2d",
             "console": "integratedTerminal",
             "justMyCode": false,
             "args": [
