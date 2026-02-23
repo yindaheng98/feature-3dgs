@@ -14,12 +14,14 @@ def feature_fusion_alpha_avg(
     weight: torch.Tensor,
     bias: torch.Tensor = None,
     fusion_alpha_threshold: float = 0.,
-) -> torch.Tensor:
+) -> tuple[torch.Tensor, torch.Tensor]:
     """Fuse per-view feature maps into per-Gaussian encoded semantics.
 
     For every camera in *dataset*, the feature map is linearly projected with
     (*weight*, *bias*) and then fused onto the Gaussians via the custom
-    rasteriser.  The results are alpha-weighted averaged across all views.
+    rasteriser.  The alpha-weighted mean and variance are computed in a
+    single streaming pass using the Welford/West online algorithm, which is
+    more numerically stable than the naive ``E[X²] - E[X]²`` approach.
 
     Args:
         gaussians: GaussianModel whose geometry is used for splatting.
@@ -30,14 +32,18 @@ def feature_fusion_alpha_avg(
         fusion_alpha_threshold: passed through to :func:`feature_fusion`.
 
     Returns:
-        ``(N, C_encoded)`` tensor in the same format as
-        ``SemanticGaussianModel._encoded_semantics``.
+        A tuple ``(mean, variance)`` where both tensors have shape
+        ``(N, C_encoded)``.  *mean* is the alpha-weighted average and
+        *variance* is the alpha-weighted population variance per Gaussian
+        per channel.
     """
     N = gaussians.get_xyz.shape[0]
     C_encoded = weight.shape[0]
+    device = gaussians._xyz.device
 
-    feature_sum = torch.zeros((N, C_encoded), device=gaussians._xyz.device, dtype=torch.float32)
-    alpha_sum = torch.zeros((N,), device=gaussians._xyz.device, dtype=torch.float32)
+    W = torch.zeros((N,), device=device, dtype=torch.float32)
+    mean = torch.zeros((N, C_encoded), device=device, dtype=torch.float32)
+    M2 = torch.zeros((N, C_encoded), device=device, dtype=torch.float32)
 
     for idx in tqdm.tqdm(range(len(dataset)), desc="Fusing features"):
         camera = dataset[idx]
@@ -48,7 +54,7 @@ def feature_fusion_alpha_avg(
         C_ext, height, width = feature_map.shape
         fm = feature_map.permute(1, 2, 0).reshape(-1, C_ext)  # (H*W, C_ext)
         fm = F.linear(fm, weight, bias)                       # (H*W, C_encoded)
-        fm = fm.reshape(height, width, -1)                    # (C_encoded, H, W)
+        fm = fm.reshape(height, width, -1)                    # (H, W, C_encoded)
 
         target_height, target_width = int(camera.image_height), int(camera.image_width)
         if height != target_height or width != target_width:
@@ -58,10 +64,21 @@ def feature_fusion_alpha_avg(
             gaussians, camera, fm, fusion_alpha_threshold,
         )
 
-        feature_sum[features_idx] += features
-        alpha_sum[features_idx] += features_alpha
+        # Welford/West online weighted update
+        w = features_alpha                                        # (K,)
+        x = features / w.unsqueeze(-1).clamp(min=1e-12)          # (K, C_encoded)
 
-    valid = alpha_sum > 1e-12
-    result = torch.zeros_like(feature_sum)
-    result[valid] = feature_sum[valid] / alpha_sum[valid].unsqueeze(-1)
-    return result
+        W_new = W[features_idx] + w                               # (K,)
+        delta = x - mean[features_idx]                            # (K, C_encoded)
+        r = (w / W_new.clamp(min=1e-12)).unsqueeze(-1)            # (K, 1)
+        new_mean = mean[features_idx] + r * delta                 # (K, C_encoded)
+
+        M2[features_idx] += w.unsqueeze(-1) * delta * (x - new_mean)
+        W[features_idx] = W_new
+        mean[features_idx] = new_mean
+
+    valid = W > 1e-12
+    variance = torch.zeros_like(mean)
+    variance[valid] = (M2[valid] / W[valid].unsqueeze(-1)).clamp(min=0.)
+
+    return mean, variance

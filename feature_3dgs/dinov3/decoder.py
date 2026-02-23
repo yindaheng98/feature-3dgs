@@ -120,7 +120,7 @@ class DINOv3LinearAvgDecoder(NoopFeatureDecoder):
             self.linear.weight.copy_(weight.to(device))
             self.linear.bias.copy_(bias.to(device))
         weight, bias = pca_inverse_transform_params_to_transform_params(weight, bias)
-        fused = feature_fusion_alpha_avg(gaussians, dataset, weight.to(device), bias.to(device))
+        fused, _ = feature_fusion_alpha_avg(gaussians, dataset, weight.to(device), bias.to(device))
         gaussians._encoded_semantics = nn.Parameter(fused.requires_grad_(True))
 
     # ------------------------------------------------------------------
