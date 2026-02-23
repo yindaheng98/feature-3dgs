@@ -235,6 +235,8 @@
             "args": [
                 "-d",
                 "output/truck-semantic",
+                // "output/truck-semantic/ours_30000/segmentation00000x377y236t0.50/segmented",
+                // "output/truck-semantic/ours_30000/segmentation00000x377y236t0.50/rest",
                 "-i",
                 "30000",
                 "--port",
@@ -258,23 +260,6 @@
                 "-d",
                 "output/truck-semantic",
                 // "output/truck-semantic/ours_30000/segmentation00000x377y236t0.50/segmented",
-                // "output/truck-semantic/ours_30000/segmentation00000x377y236t0.50/rest",
-                "-i",
-                "30000",
-                "--port",
-                "8080",
-            ]
-        },
-        {
-            "name": "viewer segmentation",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "gaussian_splatting.viewer",
-            "console": "integratedTerminal",
-            "justMyCode": false,
-            "args": [
-                "-d",
-                "output/truck-semantic/ours_30000/segmentation00000x377y236t0.50/segmented",
                 // "output/truck-semantic/ours_30000/segmentation00000x377y236t0.50/rest",
                 "-i",
                 "30000",
