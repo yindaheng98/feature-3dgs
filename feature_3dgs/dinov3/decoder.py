@@ -80,7 +80,7 @@ class DINOv3LinearAvgDecoder(NoopFeatureDecoder):
         W_pinv = torch.linalg.pinv(self.linear.weight)     # (C_enc, C_feat)
         x = feature_map - self.linear.bias.view(-1, 1, 1)
         x = F.conv2d(x.unsqueeze(0), W_pinv[:, :, None, None]).squeeze(0)
-        return F.interpolate(x.unsqueeze(0), size=(camera.image_height, camera.image_width), mode='bilinear').squeeze(0)
+        return F.interpolate(x.unsqueeze(0), size=(camera.image_height, camera.image_width), mode='bilinear', align_corners=False).squeeze(0)
 
     def project_feature_map(
             self, feature_map: torch.Tensor,
