@@ -20,7 +20,6 @@ MODEL_DINOV3_CONVNEXTT = "dinov3_convnext_tiny"
 MODEL_DINOV3_CONVNEXTS = "dinov3_convnext_small"
 MODEL_DINOV3_CONVNEXTB = "dinov3_convnext_base"
 MODEL_DINOV3_CONVNEXTL = "dinov3_convnext_large"
-NUM_STAGES = 4  # ConvNeXt always has 4 stages
 # ConvNeXt: stem stride=4, then 3 downsample layers stride=2 each => total stride = 4*2*2*2 = 32
 INPUT_PAD_SIZE = 32
 
@@ -70,7 +69,7 @@ def DINOv3ConvNextExtractor(version: str = MODEL_DINOV3_CONVNEXTB, checkpoint_di
         model = MODEL_TO_FACTORY[version](pretrained=True, weights=local_path)
     else:
         model = MODEL_TO_FACTORY[version](pretrained=True)
-    return DINOv3Extractor(model=model, n_layers=NUM_STAGES, patch_size=INPUT_PAD_SIZE)
+    return DINOv3Extractor(model=model, patch_size=INPUT_PAD_SIZE)
 
 
 CONVNEXT_FEATURE_DIMS = {

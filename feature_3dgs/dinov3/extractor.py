@@ -26,9 +26,8 @@ class DINOv3Extractor(AbstractFeatureExtractor):
     then bilinearly interpolates them to the original image resolution.
     """
 
-    def __init__(self, model: nn.Module, n_layers: int, patch_size: int):
+    def __init__(self, model: nn.Module, patch_size: int):
         self.model = model
-        self.n_layers = n_layers
         self.patch_size = patch_size
         self.model.eval()
 
@@ -54,7 +53,7 @@ class DINOv3Extractor(AbstractFeatureExtractor):
         # get_intermediate_layers returns a tuple of (1, D, H_p, W_p) tensors
         feats = self.model.get_intermediate_layers(
             x.unsqueeze(0),  # add batch dim
-            n=range(self.n_layers),
+            n=1,
             reshape=True,
             norm=True,
         )

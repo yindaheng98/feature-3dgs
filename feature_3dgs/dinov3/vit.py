@@ -27,14 +27,6 @@ MODEL_DINOV3_VITB = "dinov3_vitb16"
 MODEL_DINOV3_VITL = "dinov3_vitl16"
 MODEL_DINOV3_VITHP = "dinov3_vith16plus"
 MODEL_DINOV3_VIT7B = "dinov3_vit7b16"
-MODEL_TO_NUM_LAYERS = {
-    MODEL_DINOV3_VITS: 12,
-    MODEL_DINOV3_VITSP: 12,
-    MODEL_DINOV3_VITB: 12,
-    MODEL_DINOV3_VITL: 24,
-    MODEL_DINOV3_VITHP: 32,
-    MODEL_DINOV3_VIT7B: 40,
-}
 
 # Model name -> factory function
 MODEL_TO_FACTORY = {
@@ -92,13 +84,12 @@ MODEL_TO_FILENAME = {
 
 def DINOv3ViTExtractor(version: str = "dinov3_vitl16", checkpoint_dir: str = "checkpoints") -> DINOv3Extractor:
     assert version in MODELS, f"DINOv3 version '{version}' not supported. Choose from: {MODELS}"
-    n_layers = MODEL_TO_NUM_LAYERS[version]
     local_path = os.path.join(checkpoint_dir, MODEL_TO_FILENAME[version])
     if os.path.isfile(local_path):
         model = MODEL_TO_FACTORY[version](pretrained=True, weights=local_path)
     else:
         model = MODEL_TO_FACTORY[version](pretrained=True)
-    return DINOv3Extractor(model=model, n_layers=n_layers, patch_size=PATCH_SIZE)
+    return DINOv3Extractor(model=model, patch_size=PATCH_SIZE)
 
 
 # Feature dimensions (D) for each backbone
