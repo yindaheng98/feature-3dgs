@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
 import matplotlib.pyplot as plt
@@ -83,7 +84,30 @@ def render_segmented(gaussians: SemanticGaussianModel, camera: Camera, masked_op
     return out['render']
 
 
-def save_segmentation(gaussians: SemanticGaussianModel, dataset: FeatureCameraDataset, query: torch.Tensor, threshold: float, save_dir: str) -> None:
+def save_segmented_ply(gaussians: SemanticGaussianModel, mask: torch.Tensor, path: str) -> None:
+    """Save only the Gaussians where *mask* (N,) is True to a PLY file.
+
+    Constructs a new SemanticGaussianModel containing the masked subset and
+    delegates to its ``save_ply``, which also writes ``.semantic.pt`` and
+    ``.decoder.pt`` side-cars.
+    """
+    m = mask
+    seg = SemanticGaussianModel(sh_degree=gaussians.max_sh_degree, decoder=gaussians._decoder)
+    seg._xyz = nn.Parameter(gaussians._xyz.detach()[m])
+    seg._features_dc = nn.Parameter(gaussians._features_dc.detach()[m])
+    seg._features_rest = nn.Parameter(gaussians._features_rest.detach()[m])
+    seg._opacity = nn.Parameter(gaussians._opacity.detach()[m])
+    seg._scaling = nn.Parameter(gaussians._scaling.detach()[m])
+    seg._rotation = nn.Parameter(gaussians._rotation.detach()[m])
+    seg._encoded_semantics = nn.Parameter(gaussians._encoded_semantics.detach()[m])
+    seg.active_sh_degree = gaussians.active_sh_degree
+
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    seg.save_ply(path)
+    print(f"Saved {int(mask.sum())} / {mask.shape[0]} points to {path}")
+
+
+def save_segmentation(gaussians: SemanticGaussianModel, dataset: FeatureCameraDataset, query: torch.Tensor, threshold: float, save_dir: str, save_ply: str) -> None:
     """Render the 3D model from every dataset viewpoint and save."""
     os.makedirs(save_dir, exist_ok=True)
 
@@ -101,6 +125,8 @@ def save_segmentation(gaussians: SemanticGaussianModel, dataset: FeatureCameraDa
 
         img_seg = render_segmented(gaussians, camera, masked_opacity)
         torchvision.utils.save_image(img_seg, os.path.join(save_dir, f"{idx:05d}_3d_segmented.png"))
+
+    save_segmented_ply(gaussians, mask_3d, save_ply)
 
 
 if __name__ == "__main__":
@@ -137,4 +163,5 @@ if __name__ == "__main__":
             extractor_configs=extractor_configs,
         )
         feature = get_feature(dataset, args.image_index, args.x, args.y)
-        save_segmentation(gaussians, dataset, feature, args.threshold, save)
+        save_ply = os.path.join(save, "point_cloud", "iteration_" + str(args.iteration), "point_cloud.ply")
+        save_segmentation(gaussians, dataset, feature, args.threshold, save, save_ply)

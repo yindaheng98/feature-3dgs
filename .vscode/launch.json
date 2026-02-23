@@ -235,6 +235,22 @@
             ]
         },
         {
+            "name": "viewer segmentation",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "gaussian_splatting.viewer",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "-d",
+                "output/truck-semantic/ours_30000/segmentation00000x377y236t0.50",
+                "-i",
+                "30000",
+                "--port",
+                "8080",
+            ]
+        },
+        {
             "name": "show",
             "type": "debugpy",
             "request": "launch",
