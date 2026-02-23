@@ -160,7 +160,8 @@ class SemanticGaussianModel(GaussianModel):
             colors_precomp=colors_precomp,
             cov3D_precomp=cov3D_precomp,
         )
-        out['feature_map'] = self.get_decoder(out['feature_map'])
+        out['feature_map_encoded'] = out['feature_map']
+        out['feature_map'] = self.get_decoder(out['feature_map_encoded'])
         return out
 
     def forward_projection(self, viewpoint_camera: Camera, weight: torch.Tensor, bias: torch.Tensor = None):
@@ -206,7 +207,8 @@ class SemanticGaussianModel(GaussianModel):
             colors_precomp=colors_precomp,
             cov3D_precomp=cov3D_precomp,
         )
-        out['feature_map'] = self._decoder.project_feature_map(out['feature_map'], weight=weight, bias=bias)
+        out['feature_map_encoded'] = out['feature_map']
+        out['feature_map'] = self._decoder.project_feature_map(out['feature_map_encoded'], weight=weight, bias=bias)
         return out
 
     def render_encoded(
