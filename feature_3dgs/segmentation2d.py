@@ -4,7 +4,7 @@ import torch
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from feature_3dgs import get_available_extractor_decoders
+from feature_3dgs import SemanticGaussianModel, get_available_extractor_decoders
 from feature_3dgs.extractor import FeatureCameraDataset
 from feature_3dgs.render import prepare_rendering
 
@@ -70,19 +70,30 @@ def show_segmentation(
     return fig
 
 
-def save_segmentation(dataset: FeatureCameraDataset, query: torch.Tensor, threshold: float, save_dir: str) -> None:
+def save_segmentation(gaussians: SemanticGaussianModel, dataset: FeatureCameraDataset, query: torch.Tensor, threshold: float, save_dir: str) -> None:
     """Save cosine-similarity heatmaps and segmented images for every dataset image."""
     os.makedirs(save_dir, exist_ok=True)
 
     for idx in tqdm(range(len(dataset)), desc="Saving 2D segmentation"):
+
         camera = dataset[idx]
         sim = compute_similarity_map(query, camera.custom_data['feature_map'])
         img = camera.ground_truth_image
-        img_seg = segment_image(img, sim, threshold)
 
+        img_seg = segment_image(img, sim, threshold)
         fig = plt.figure(figsize=(12, 4), dpi=150)
         show_segmentation(fig, img, sim, img_seg, threshold)
-        fig.savefig(os.path.join(save_dir, f"{idx:05d}.png"), bbox_inches="tight", pad_inches=0.05)
+        fig.savefig(os.path.join(save_dir, f"{idx:05d}_gt.png"), bbox_inches="tight", pad_inches=0.05)
+        plt.close(fig)
+
+        out = gaussians(camera)
+        sim = compute_similarity_map(query, out['feature_map'])
+        img = out['render']
+
+        img_seg = segment_image(img, sim, threshold)
+        fig = plt.figure(figsize=(12, 4), dpi=150)
+        show_segmentation(fig, img, sim, img_seg, threshold)
+        fig.savefig(os.path.join(save_dir, f"{idx:05d}_render.png"), bbox_inches="tight", pad_inches=0.05)
         plt.close(fig)
 
 
@@ -128,4 +139,4 @@ if __name__ == "__main__":
         show_segmentation(fig, img, similarity_map, img_seg, args.threshold, args.x, args.y)
         plt.show()
 
-        save_segmentation(dataset, feature, args.threshold, save)
+        save_segmentation(gaussians, dataset, feature, args.threshold, save)
