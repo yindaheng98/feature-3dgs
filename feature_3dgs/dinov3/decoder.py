@@ -6,7 +6,7 @@ from feature_3dgs.decoder import NoopFeatureDecoder
 from feature_3dgs.extractor import FeatureCameraDataset
 from feature_3dgs.gaussian_model import SemanticGaussianModel
 from feature_3dgs.utils import pca_inverse_transform_params_to_transform_params
-from feature_3dgs.utils.featurefusion import feature_fusion_alpha_avg
+from feature_3dgs.utils.featurefusion import feature_fusion_alpha_avg, feature_fusion_alpha_max
 
 from .extractor import padding
 
@@ -121,6 +121,7 @@ class DINOv3LinearAvgDecoder(NoopFeatureDecoder):
             self.linear.bias.copy_(bias.to(device))
         weight, bias = pca_inverse_transform_params_to_transform_params(weight, bias)
         fused, _ = feature_fusion_alpha_avg(gaussians, dataset, weight.to(device), bias.to(device))
+        # fused, _ = feature_fusion_alpha_max(gaussians, dataset, weight.to(device), bias.to(device))  # worse than avg
         gaussians._encoded_semantics = nn.Parameter(fused.requires_grad_(True))
 
     # ------------------------------------------------------------------
