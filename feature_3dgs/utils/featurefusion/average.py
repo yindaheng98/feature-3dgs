@@ -58,24 +58,34 @@ def feature_fusion_alpha_avg(
 
         target_height, target_width = int(camera.image_height), int(camera.image_width)
         if height != target_height or width != target_width:
-            fm = F.interpolate(fm.permute(2, 0, 1).unsqueeze(0), size=(target_height, target_width), mode='bilinear', align_corners=False).squeeze(0).permute(1, 2, 0)
+            fm = F.interpolate(fm.permute(2, 0, 1).unsqueeze(0), size=(target_height, target_width), mode='nearest').squeeze(0).permute(1, 2, 0)
 
         _, features, features_alpha, _, features_idx = feature_fusion(
             gaussians, camera, fm, fusion_alpha_threshold,
         )
+        del fm, _
 
         # Welford/West online weighted update
         w = features_alpha                                        # (K,)
-        x = features / w.unsqueeze(-1).clamp(min=1e-12)          # (K, C_encoded)
+        features.div_(w.unsqueeze(-1).clamp(min=1e-12))           # (K, C_encoded) in-place: αx → x
 
-        W_new = W[features_idx] + w                               # (K,)
-        delta = x - mean[features_idx]                            # (K, C_encoded)
+        W_old = W[features_idx]                                   # (K,)
+        W_new = W_old + w                                         # (K,)
+        old_mean = mean[features_idx]                             # (K, C)
+        features.sub_(old_mean)                                   # in-place: x → δ
+
+        # M2 += (w·W_old / W_new)·δ²  — avoids allocating x and new_mean together
+        scale = ((w * W_old) / W_new.clamp(min=1e-12)).unsqueeze(-1)  # (K, 1)
+        delta_sq = features.square()                              # (K, C)
+        delta_sq.mul_(scale)                                      # in-place
+        M2[features_idx] += delta_sq
+        del delta_sq, scale
+
+        # μ_new = μ_old + (w / W_new)·δ
         r = (w / W_new.clamp(min=1e-12)).unsqueeze(-1)            # (K, 1)
-        new_mean = mean[features_idx] + r * delta                 # (K, C_encoded)
-
-        M2[features_idx] += w.unsqueeze(-1) * delta * (x - new_mean)
+        mean[features_idx] = old_mean.addcmul_(r, features)
         W[features_idx] = W_new
-        mean[features_idx] = new_mean
+        del old_mean, features, features_alpha, features_idx, W_old, W_new, r, w
 
     valid = W > 1e-12
     variance = torch.zeros_like(mean)
