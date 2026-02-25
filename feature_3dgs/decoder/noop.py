@@ -1,4 +1,3 @@
-import torch
 from .trainable import AbstractTrainableFeatureDecoder
 
 

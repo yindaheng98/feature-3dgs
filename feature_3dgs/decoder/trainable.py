@@ -1,6 +1,12 @@
+from __future__ import annotations
+
 from abc import abstractmethod
-from feature_3dgs.extractor import FeatureCameraDataset
-from feature_3dgs.gaussian_model import AbstractFeatureDecoder, SemanticGaussianModel
+from .abc import AbstractFeatureDecoder
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from feature_3dgs.extractor import FeatureCameraDataset
+    from feature_3dgs.gaussian_model import SemanticGaussianModel
 
 
 class AbstractTrainableFeatureDecoder(AbstractFeatureDecoder):
