@@ -76,13 +76,10 @@ class DINOv3LinearAvgDecoder(NoopFeatureDecoder):
     def encode_feature_map(self, feature_map: torch.Tensor, camera: Camera) -> torch.Tensor:
         """Inverse of decode_feature_map: (C_feat, H_p, W_p) -> (C_enc, H, W).
 
-        Reparameterized as ``F.conv2d`` with a 1x1 kernel (derived from
-        the pseudo-inverse of ``self.linear``) to avoid permute/reshape
-        overhead, then bilinear upsampling to restore full spatial resolution.
+        Applies ``encode_feature_pixels`` then bilinear upsampling to restore
+        full spatial resolution.
         """
-        W_pinv = torch.linalg.pinv(self.linear.weight)       # (C_enc, C_feat)
-        b_pinv = -(W_pinv @ self.linear.bias)                 # (C_enc,)
-        x = F.conv2d(feature_map.unsqueeze(0), W_pinv[:, :, None, None], b_pinv).squeeze(0)
+        x = self.encode_feature_pixels(feature_map)           # (C_enc, H_p, W_p)
         return F.interpolate(x.unsqueeze(0), size=(camera.image_height, camera.image_width), mode='bilinear', align_corners=False).squeeze(0)
 
     def decode_feature_pixels(
@@ -101,6 +98,17 @@ class DINOv3LinearAvgDecoder(NoopFeatureDecoder):
             combined_weight = weight @ self.linear.weight         # (C_proj, C_enc)
         combined_bias = F.linear(self.linear.bias, weight, bias)  # (C_proj,)
         return F.conv2d(feature_map.unsqueeze(0), combined_weight[:, :, None, None], combined_bias).squeeze(0)
+
+    def encode_feature_pixels(self, feature_map: torch.Tensor) -> torch.Tensor:
+        """Reparameterized per-pixel encoding via 1x1 Conv2d.
+
+        Equivalent to applying ``encode_features`` per pixel but avoids
+        permute/reshape overhead by using ``F.conv2d`` with a 1x1 kernel
+        derived from the pseudo-inverse of ``self.linear``.
+        """
+        W_pinv = torch.linalg.pinv(self.linear.weight)       # (C_enc, C_feat)
+        b_pinv = -(W_pinv @ self.linear.bias)                 # (C_enc,)
+        return F.conv2d(feature_map.unsqueeze(0), W_pinv[:, :, None, None], b_pinv).squeeze(0)
 
     @staticmethod
     def init_semantic(gaussians: SemanticGaussianModel, dataset: FeatureCameraDataset):

@@ -35,6 +35,9 @@ class AbstractFeatureDecoder(ABC):
     - ``encode_feature_map``: convert an extractor feature map
       ``(C_feat, H', W')`` back to encoded format ``(C_enc, H, W)``,
       the inverse of ``decode_feature_map``.
+    - ``encode_feature_pixels``: per-pixel encoding that applies
+      ``encode_features`` at full spatial resolution, the inverse of
+      ``decode_feature_pixels`` (without weight/bias).
     """
 
     def decode_features(self, features: torch.Tensor) -> torch.Tensor:
@@ -103,6 +106,22 @@ class AbstractFeatureDecoder(ABC):
         x = self.decode_features(x)                       # (H*W, C_feat)
         if weight is not None:
             x = F.linear(x, weight, bias)                  # (H*W, C_proj)
+        return x.reshape(H, W, -1).permute(2, 0, 1)
+
+    def encode_feature_pixels(self, feature_map: torch.Tensor) -> torch.Tensor:
+        """Per-pixel encoding (spatial resolution preserved).
+
+        Applies ``encode_features`` to **every pixel**.
+
+        Args:
+            feature_map: (C_feat, H, W) — decoded feature map.
+
+        Returns:
+            (C_enc, H, W) in the encoded space.
+        """
+        C, H, W = feature_map.shape
+        x = feature_map.permute(1, 2, 0).reshape(-1, C)  # (H*W, C_feat)
+        x = self.encode_features(x)                       # (H*W, C_enc)
         return x.reshape(H, W, -1).permute(2, 0, 1)
 
     def __call__(self, feature_map: torch.Tensor) -> torch.Tensor:
