@@ -34,6 +34,10 @@ class SemanticTrainer(TrainerWrapper):
         self.semantic_smooth_weight = semantic_smooth_weight
         self.mask_mode = semantic_mask_mode
 
+    @property
+    def model(self) -> SemanticGaussianModel:
+        return self.base_trainer.model
+
     def loss(self, out: dict, camera: Camera) -> torch.Tensor:
         loss = super().loss(out, camera)
         render = out['feature_map']
