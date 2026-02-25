@@ -42,6 +42,7 @@ def feature_fusion_alpha_max(
     device = gaussians._xyz.device
 
     best_score = torch.full((N,), -float('inf'), device=device, dtype=torch.float32)
+    # best_score = torch.full((N,), 0, device=device, dtype=torch.int32) # debug: use pixhit count as score instead of alpha
     result = torch.zeros((N, C_encoded), device=device, dtype=torch.float32)
 
     for idx in tqdm.tqdm(range(len(dataset)), desc="Fusing features (max)"):
@@ -67,7 +68,8 @@ def feature_fusion_alpha_max(
         w = features_alpha                                        # (K,)
         features.div_(w.unsqueeze(-1).clamp(min=1e-12))           # in-place: αx → x
 
-        score = features_alpha  # TODO: consider other scoring functions that also take pixhit into account?
+        score = features_alpha
+        # score = pixhit # debug: use pixhit count as score instead of alpha
         better = score > best_score[features_idx]                     # (K,)
         if better.any():
             update_idx = features_idx[better]
