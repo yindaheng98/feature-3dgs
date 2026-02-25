@@ -53,7 +53,7 @@ class SemanticTrainer(TrainerWrapper):
         smooth_loss = 0
         encoded = out['feature_map_encoded']
         if gt.shape[1:] != encoded.shape[1:]:
-            gt_encoded = self.model.get_decoder.transform_feature_map_inverse(camera.custom_data['feature_map'], camera)
+            gt_encoded = self.model.get_decoder.encode_feature_map(camera.custom_data['feature_map'], camera)
             smooth_loss = l1_loss(encoded, gt_encoded)
 
         return loss + semantic_loss * self.semantic_loss_weight + smooth_loss * self.semantic_smooth_weight

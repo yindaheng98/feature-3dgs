@@ -16,8 +16,8 @@ class DINOv3LinearAvgDecoder(NoopFeatureDecoder):
 
     Three operations:
       1. **init** - PCA on extractor features to initialise the linear layer.
-      2. **transform_features** - ``nn.Linear(C_enc, C_feat)`` per point.
-      3. **transform_feature_map** - reparameterizes the linear mapping
+      2. **decode_features** - ``nn.Linear(C_enc, C_feat)`` per point.
+      3. **decode_feature_map** - reparameterizes the linear mapping
          with patch-level average pooling into a single ``F.conv2d`` call.
          The Conv2d kernel is derived on-the-fly from ``self.linear``
          weights (uniform spatial values = weight / P²), so only the
@@ -42,11 +42,11 @@ class DINOv3LinearAvgDecoder(NoopFeatureDecoder):
     # Three core operations
     # ------------------------------------------------------------------
 
-    def transform_features(self, features: torch.Tensor) -> torch.Tensor:
+    def decode_features(self, features: torch.Tensor) -> torch.Tensor:
         """Pointwise decoding: (N, C_enc) -> (N, C_feat)."""
         return self.linear(features)
 
-    def transform_feature_map(self, feature_map: torch.Tensor) -> torch.Tensor:
+    def decode_feature_map(self, feature_map: torch.Tensor) -> torch.Tensor:
         """Fused linear + avg-pool via a single Conv2d.
 
         Equivalent to (but avoids the large (C_feat, H, W) intermediate):
@@ -68,8 +68,8 @@ class DINOv3LinearAvgDecoder(NoopFeatureDecoder):
         weight = self.linear.weight[:, :, None, None].expand(-1, -1, P, P) / (P * P)
         return F.conv2d(x.unsqueeze(0), weight, self.linear.bias, stride=P).squeeze(0)
 
-    def transform_feature_map_inverse(self, feature_map: torch.Tensor, camera: Camera) -> torch.Tensor:
-        """Inverse of transform_feature_map: (C_feat, H_p, W_p) -> (C_enc, H, W).
+    def encode_feature_map(self, feature_map: torch.Tensor, camera: Camera) -> torch.Tensor:
+        """Inverse of decode_feature_map: (C_feat, H_p, W_p) -> (C_enc, H, W).
 
         Applies the pseudo-inverse of ``self.linear`` to reverse the channel
         mapping, then upsampling to restore full spatial
@@ -82,7 +82,7 @@ class DINOv3LinearAvgDecoder(NoopFeatureDecoder):
         x = F.conv2d(x.unsqueeze(0), W_pinv[:, :, None, None]).squeeze(0)
         return F.interpolate(x.unsqueeze(0), size=(camera.image_height, camera.image_width), mode='bilinear', align_corners=False).squeeze(0)
 
-    def project_feature_map(
+    def decode_feature_pixels(
             self, feature_map: torch.Tensor,
             weight: torch.Tensor = None,
             bias: torch.Tensor = None) -> torch.Tensor:

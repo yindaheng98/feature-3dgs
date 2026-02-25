@@ -20,29 +20,29 @@ class AbstractFeatureDecoder(ABC):
 
     Operations
     ----------
-    - ``transform_features``: per-point decoding ``(N, C_enc) -> (N, C_feat)``,
+    - ``decode_features``: per-point decoding ``(N, C_enc) -> (N, C_feat)``,
       applicable directly to per-Gaussian encoded semantics.
-    - ``transform_feature_map``: convert a full rendered feature map
+    - ``decode_feature_map``: convert a full rendered feature map
       ``(C_enc, H, W)`` into extractor output format ``(C_feat, H', W')``,
       matching both channel dimension and spatial resolution.  Subclasses
       may override it with reparameterized, memory-efficient implementations
       — e.g. a single Conv2d that fuses per-point mapping and spatial
       downsampling without materialising a large intermediate tensor.
-    - ``project_feature_map``: per-pixel projection that applies
-      ``transform_features`` and optionally a custom linear layer
+    - ``decode_feature_pixels``: per-pixel projection that applies
+      ``decode_features`` and optionally a custom linear layer
       (``weight`` / ``bias``), always preserving the original spatial
       resolution.  Useful for producing full-resolution feature maps with
       arbitrary output dimensions — e.g. a 3-channel PCA visualisation.
     """
 
-    def transform_features(self, features: torch.Tensor) -> torch.Tensor:
+    def decode_features(self, features: torch.Tensor) -> torch.Tensor:
         """Per-point decoding: (N, C_enc) -> (N, C_feat)."""
         return features
 
-    def transform_feature_map(self, feature_map: torch.Tensor) -> torch.Tensor:
+    def decode_feature_map(self, feature_map: torch.Tensor) -> torch.Tensor:
         """Convert rendered feature map to extractor output format.
 
-        Default: apply transform_features per pixel (no spatial change).
+        Default: apply decode_features per pixel (no spatial change).
         Subclasses may override for fused spatial downsampling.
 
         Args:
@@ -53,16 +53,16 @@ class AbstractFeatureDecoder(ABC):
         """
         C, H, W = feature_map.shape
         x = feature_map.permute(1, 2, 0).reshape(-1, C)  # (H*W, C_enc)
-        x = self.transform_features(x)                    # (H*W, C_feat)
+        x = self.decode_features(x)                       # (H*W, C_feat)
         return x.reshape(H, W, -1).permute(2, 0, 1)       # (C_feat, H, W), override to change spatial resolution as well
 
-    def project_feature_map(self, feature_map: torch.Tensor,
+    def decode_feature_pixels(self, feature_map: torch.Tensor,
                             weight: torch.Tensor = None,
                             bias: torch.Tensor = None) -> torch.Tensor:
         """Per-pixel feature projection (spatial resolution preserved).
 
-        Applies ``transform_features`` (decode) to **every pixel**, then
-        optionally a custom linear layer ``F.linear(x, weight, bias)``.
+        Applies ``decode_features`` to **every pixel**, then optionally a
+        custom linear layer ``F.linear(x, weight, bias)``.
 
         Args:
             feature_map: (C_enc, H, W) — encoded (rasterised) feature map.
@@ -75,13 +75,13 @@ class AbstractFeatureDecoder(ABC):
         """
         C, H, W = feature_map.shape
         x = feature_map.permute(1, 2, 0).reshape(-1, C)  # (H*W, C_enc)
-        x = self.transform_features(x)                    # (H*W, C_feat)
+        x = self.decode_features(x)                       # (H*W, C_feat)
         if weight is not None:
             x = F.linear(x, weight, bias)                  # (H*W, C_proj)
         return x.reshape(H, W, -1).permute(2, 0, 1)
 
     def __call__(self, feature_map: torch.Tensor) -> torch.Tensor:
-        return self.transform_feature_map(feature_map)
+        return self.decode_feature_map(feature_map)
 
     @abstractmethod
     def to(self, device) -> 'AbstractFeatureDecoder':
@@ -122,14 +122,14 @@ class SemanticGaussianModel(GaussianModel):
     def get_semantics(self):
         """Per-Gaussian semantic features aligned with the extractor's space.
 
-        Applies the decoder's pointwise transform_features (no spatial
+        Applies the decoder's pointwise decode_features (no spatial
         post-processing) so the result is directly comparable to the
         extractor output.
 
         Returns:
             (N, C_feat) tensor in the extractor's feature space.
         """
-        return self._decoder.transform_features(self._encoded_semantics)
+        return self._decoder.decode_features(self._encoded_semantics)
 
     @property
     def get_decoder(self):
@@ -176,7 +176,7 @@ class SemanticGaussianModel(GaussianModel):
     def forward_projection(self, viewpoint_camera: Camera, weight: torch.Tensor, bias: torch.Tensor = None):
         """Render and apply a custom linear projection to the feature map.
 
-        The decoder's ``transform_features`` is applied per pixel, followed
+        The decoder's ``decode_features`` is applied per pixel, followed
         by the supplied linear mapping.  Spatial resolution is preserved.
         """
         return self.render_projection(
@@ -217,7 +217,7 @@ class SemanticGaussianModel(GaussianModel):
             cov3D_precomp=cov3D_precomp,
         )
         out['feature_map_encoded'] = out['feature_map']
-        out['feature_map'] = self._decoder.project_feature_map(out['feature_map_encoded'], weight=weight, bias=bias)
+        out['feature_map'] = self._decoder.decode_feature_pixels(out['feature_map_encoded'], weight=weight, bias=bias)
         return out
 
     def render_encoded(

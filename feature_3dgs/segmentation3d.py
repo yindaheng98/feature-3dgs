@@ -28,7 +28,7 @@ def compute_3d_similarity(query: torch.Tensor, gaussians: SemanticGaussianModel,
     parts = []
     for start in range(0, encoded.shape[0], batch_size):
         chunk = encoded[start:start + batch_size]      # (B, C_enc)
-        feat = decoder.transform_features(chunk)       # (B, C_feat)
+        feat = decoder.decode_features(chunk)          # (B, C_feat)
         sim = F.cosine_similarity(q, feat, dim=1)      # (B,)
         parts.append(sim)
         del feat

@@ -148,7 +148,7 @@ with torch.no_grad():
         feat_enc = out["feature_map_encoded"] # (embed_dim, H, W)  raw rasterised
 
     # Per-Gaussian semantic features (no rendering needed)
-    semantics = gaussians.get_semantics      # (N, D)  via decoder.transform_features
+    semantics = gaussians.get_semantics      # (N, D)  via decoder.decode_features
 
     # Custom linear projection at full resolution (e.g. PCA visualisation)
     weight, bias = ...  # (C, D) and (C,)
@@ -186,24 +186,24 @@ The decoder is a **learnable** module with three core operations:
 | Method | Signature | Purpose |
 |---|---|---|
 | `init(dataset)` | — | Build the mapping from data (e.g. PCA initialisation) |
-| `transform_features(features)` | `(N, C_in) → (N, C_out)` | Per-point mapping, usable on per-Gaussian encoded semantics directly |
-| `transform_feature_map(feature_map)` | `(C_in, H, W) → (C_out, H', W')` | Full rendered feature map → extractor output format (channel + spatial) |
+| `decode_features(features)` | `(N, C_in) → (N, C_out)` | Per-point mapping, usable on per-Gaussian encoded semantics directly |
+| `decode_feature_map(feature_map)` | `(C_in, H, W) → (C_out, H', W')` | Full rendered feature map → extractor output format (channel + spatial) |
 
-An additional `transform_feature_map_linear(feature_map, weight, bias)` appends a custom linear projection after `transform_features` at full spatial resolution — useful for PCA visualisation or arbitrary downstream projections.
+An additional `transform_feature_map_linear(feature_map, weight, bias)` appends a custom linear projection after `decode_features` at full spatial resolution — useful for PCA visualisation or arbitrary downstream projections.
 
 ```
 Encoded semantics ──► Rasteriser ──► Raw Feature Map (embed_dim, H, W)
                                            │
                           ┌────────────────┼────────────────┐
                           ▼                ▼                ▼
-                  transform_feature_map  forward_linear  (stored as
+                  decode_feature_map     forward_linear  (stored as
                           │            (custom linear)   feature_map_encoded)
                           ▼                ▼
               Decoded Feature Map    Projected Map
                (D, H', W')          (C, H, W)
 ```
 
-The default `transform_feature_map` applies `transform_features` per pixel (no spatial change). Subclasses may override it with **reparameterized** implementations for memory efficiency — e.g. the DINOv3 decoder reparameterizes a linear mapping followed by patch-level average pooling into a single `F.conv2d` call, avoiding a large intermediate tensor. Similarly, `transform_feature_map_linear` reparameterizes two sequential linear layers into one combined projection.
+The default `decode_feature_map` applies `decode_features` per pixel (no spatial change). Subclasses may override it with **reparameterized** implementations for memory efficiency — e.g. the DINOv3 decoder reparameterizes a linear mapping followed by patch-level average pooling into a single `F.conv2d` call, avoiding a large intermediate tensor. Similarly, `transform_feature_map_linear` reparameterizes two sequential linear layers into one combined projection.
 
 The training loss is `L1(Decoded Feature Map, Extractor Feature Map)`. The decoder's role is to bridge the gap between the compact per-point embedding (`embed_dim`, typically 32) and the extractor's high-dimensional output (`D`, e.g. 1024 for ViT-L), while also handling any spatial resolution change.
 
@@ -211,7 +211,7 @@ The training loss is `L1(Decoded Feature Map, Extractor Feature Map)`. The decod
 
 1. **Memory efficiency**: Only `embed_dim` channels are stored per Gaussian and rasterised, not the full `D` channels. The decoder upprojects after rasterisation.
 2. **Spatial alignment**: Foundation models often output at patch resolution (e.g. 1/16 for ViT). The decoder can downsample the rasterised full-resolution map to match, avoiding expensive full-resolution feature supervision.
-3. **Direct feature access**: `transform_features` can be applied directly to per-Gaussian encoded semantics (via `get_semantics`), producing extractor-aligned features without rendering.
+3. **Direct feature access**: `decode_features` can be applied directly to per-Gaussian encoded semantics (via `get_semantics`), producing extractor-aligned features without rendering.
 4. **Modularity**: Swapping the foundation model only requires a new Extractor-Decoder pair. The Gaussian model, trainer, and rendering pipeline remain unchanged.
 
 ## Extending: Adding a New Foundation Model
@@ -244,7 +244,7 @@ class MyModelExtractor(AbstractFeatureExtractor):
 
 ### Step 2: Implement the Decoder
 
-Create `feature_3dgs/mymodel/decoder.py`. At minimum, implement `transform_features` (per-point mapping) and optionally override `transform_feature_map` for efficiency:
+Create `feature_3dgs/mymodel/decoder.py`. At minimum, implement `decode_features` (per-point mapping) and optionally override `decode_feature_map` for efficiency:
 
 ```python
 import torch
@@ -256,13 +256,13 @@ class MyModelDecoder(NoopFeatureDecoder):
         super().__init__(embed_dim=in_channels)
         self.linear = nn.Linear(in_channels, out_channels)
 
-    def transform_features(self, features: torch.Tensor) -> torch.Tensor:
+    def decode_features(self, features: torch.Tensor) -> torch.Tensor:
         # features: (N, in_channels)  ->  (N, out_channels)
         return self.linear(features)
 
-    def transform_feature_map(self, feature_map: torch.Tensor) -> torch.Tensor:
+    def decode_feature_map(self, feature_map: torch.Tensor) -> torch.Tensor:
         # Optional override for fused / memory-efficient implementation.
-        # Default: applies transform_features per pixel (no spatial change).
+        # Default: applies decode_features per pixel (no spatial change).
         # Override to add spatial downsampling if needed.
         ...
 
@@ -280,7 +280,7 @@ class MyModelDecoder(NoopFeatureDecoder):
         return self.linear.parameters()
 ```
 
-The key design constraint: **`transform_feature_map`'s output spatial size and channel count must exactly match the extractor's output**, so that L1 loss can be computed directly.
+The key design constraint: **`decode_feature_map`'s output spatial size and channel count must exactly match the extractor's output**, so that L1 loss can be computed directly.
 
 For example, the DINOv3 ViT extractor outputs at patch resolution `(D, H/P, W/P)`. `DINOv3LinearAvgDecoder` reparameterizes a trainable `nn.Linear` with patch-level average pooling into a single `F.conv2d` call (kernel derived from linear weights, stride = patch size), avoiding the large `(D, H, W)` intermediate tensor entirely.
 

@@ -11,7 +11,7 @@ class AbstractTrainableFeatureDecoder(AbstractFeatureDecoder):
 
     - ``init_semantic``: initialise the decoder (e.g. via PCA on extractor features).
     - ``parameters``: return trainable parameters to be optimised by the trainer.
-    - ``transform_feature_map_inverse``: reverse of ``transform_feature_map``,
+    - ``encode_feature_map``: reverse of ``decode_feature_map``,
       mapping a ground-truth extractor feature map back into the encoded space
       at full rendered resolution.  Used to compute a smoothness loss that
       bypasses avg-pool information loss.
@@ -26,8 +26,8 @@ class AbstractTrainableFeatureDecoder(AbstractFeatureDecoder):
     def parameters(self):
         return []
 
-    def transform_feature_map_inverse(self, feature_map: torch.Tensor, camera: Camera) -> torch.Tensor:
-        """Inverse of ``transform_feature_map``: map extractor GT back to encoded space.
+    def encode_feature_map(self, feature_map: torch.Tensor, camera: Camera) -> torch.Tensor:
+        """Inverse of ``decode_feature_map``: map extractor GT back to encoded space.
 
         Reverses the channel mapping and spatial downsampling so the result
         can be compared pixel-by-pixel with the raw encoded feature map
