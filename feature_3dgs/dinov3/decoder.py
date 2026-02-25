@@ -76,20 +76,20 @@ class DINOv3LinearAvgDecoder(NoopFeatureDecoder):
     def encode_feature_map(self, feature_map: torch.Tensor, camera: Camera) -> torch.Tensor:
         """Inverse of decode_feature_map: (C_feat, H_p, W_p) -> (C_enc, H, W).
 
-        Applies ``encode_features`` per pixel to reverse the channel mapping,
-        then bilinear upsampling to restore full spatial resolution.
+        Reparameterized as ``F.conv2d`` with a 1x1 kernel (derived from
+        the pseudo-inverse of ``self.linear``) to avoid permute/reshape
+        overhead, then bilinear upsampling to restore full spatial resolution.
         """
-        C, H, W = feature_map.shape
-        x = feature_map.permute(1, 2, 0).reshape(-1, C)      # (H*W, C_feat)
-        x = self.encode_features(x)                           # (H*W, C_enc)
-        x = x.reshape(H, W, -1).permute(2, 0, 1)             # (C_enc, H_p, W_p)
+        W_pinv = torch.linalg.pinv(self.linear.weight)       # (C_enc, C_feat)
+        b_pinv = -(W_pinv @ self.linear.bias)                 # (C_enc,)
+        x = F.conv2d(feature_map.unsqueeze(0), W_pinv[:, :, None, None], b_pinv).squeeze(0)
         return F.interpolate(x.unsqueeze(0), size=(camera.image_height, camera.image_width), mode='bilinear', align_corners=False).squeeze(0)
 
     def decode_feature_pixels(
             self, feature_map: torch.Tensor,
             weight: torch.Tensor = None,
             bias: torch.Tensor = None) -> torch.Tensor:
-        """Reparameterized per-pixel projection (spatial resolution preserved).
+        """Reparameterized per-pixel projection via 1x1 Conv2d.
 
         When *weight* is given, fuses ``self.linear`` and the custom linear
         into one:  weight_c = weight @ W1,  bias_c = weight @ b1 + bias,
@@ -100,11 +100,7 @@ class DINOv3LinearAvgDecoder(NoopFeatureDecoder):
         if weight is not None:
             combined_weight = weight @ self.linear.weight         # (C_proj, C_enc)
         combined_bias = F.linear(self.linear.bias, weight, bias)  # (C_proj,)
-
-        C, H, W = feature_map.shape
-        x = feature_map.permute(1, 2, 0).reshape(-1, C)        # (H*W, C_enc)
-        x = F.linear(x, combined_weight, combined_bias)        # (H*W, C_proj)
-        return x.reshape(H, W, -1).permute(2, 0, 1)            # (C_proj, H, W)
+        return F.conv2d(feature_map.unsqueeze(0), combined_weight[:, :, None, None], combined_bias).squeeze(0)
 
     @staticmethod
     def init_semantic(gaussians: SemanticGaussianModel, dataset: FeatureCameraDataset):
