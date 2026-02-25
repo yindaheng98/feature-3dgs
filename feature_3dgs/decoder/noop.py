@@ -6,9 +6,6 @@ class NoopFeatureDecoder(AbstractTrainableFeatureDecoder):
     def __init__(self, embed_dim: int):
         self._embed_dim = embed_dim
 
-    def decode_feature_map(self, feature_map: torch.Tensor) -> torch.Tensor:
-        return feature_map  # Do nothing to the feature map (identity mapping)
-
     def to(self, device) -> 'AbstractTrainableFeatureDecoder':
         return self
 

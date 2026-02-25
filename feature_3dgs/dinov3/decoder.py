@@ -68,18 +68,21 @@ class DINOv3LinearAvgDecoder(NoopFeatureDecoder):
         weight = self.linear.weight[:, :, None, None].expand(-1, -1, P, P) / (P * P)
         return F.conv2d(x.unsqueeze(0), weight, self.linear.bias, stride=P).squeeze(0)
 
+    def encode_features(self, features: torch.Tensor) -> torch.Tensor:
+        """Pointwise encoding via pseudo-inverse: (N, C_feat) -> (N, C_enc)."""
+        W_pinv = torch.linalg.pinv(self.linear.weight)     # (C_enc, C_feat)
+        return F.linear(features - self.linear.bias, W_pinv)
+
     def encode_feature_map(self, feature_map: torch.Tensor, camera: Camera) -> torch.Tensor:
         """Inverse of decode_feature_map: (C_feat, H_p, W_p) -> (C_enc, H, W).
 
-        Applies the pseudo-inverse of ``self.linear`` to reverse the channel
-        mapping, then upsampling to restore full spatial
-        resolution.  This gives a per-pixel target in the encoded space so the
-        trainer can compute a smoothness loss that is not subject to the
-        information loss of avg-pooling.
+        Applies ``encode_features`` per pixel to reverse the channel mapping,
+        then bilinear upsampling to restore full spatial resolution.
         """
-        W_pinv = torch.linalg.pinv(self.linear.weight)     # (C_enc, C_feat)
-        x = feature_map - self.linear.bias.view(-1, 1, 1)
-        x = F.conv2d(x.unsqueeze(0), W_pinv[:, :, None, None]).squeeze(0)
+        C, H, W = feature_map.shape
+        x = feature_map.permute(1, 2, 0).reshape(-1, C)      # (H*W, C_feat)
+        x = self.encode_features(x)                           # (H*W, C_enc)
+        x = x.reshape(H, W, -1).permute(2, 0, 1)             # (C_enc, H_p, W_p)
         return F.interpolate(x.unsqueeze(0), size=(camera.image_height, camera.image_width), mode='bilinear', align_corners=False).squeeze(0)
 
     def decode_feature_pixels(

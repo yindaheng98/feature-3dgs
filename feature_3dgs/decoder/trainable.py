@@ -1,6 +1,4 @@
-import torch
 from abc import abstractmethod
-from gaussian_splatting import Camera
 from feature_3dgs.extractor import FeatureCameraDataset
 from feature_3dgs.gaussian_model import AbstractFeatureDecoder, SemanticGaussianModel
 
@@ -11,10 +9,6 @@ class AbstractTrainableFeatureDecoder(AbstractFeatureDecoder):
 
     - ``init_semantic``: initialise the decoder (e.g. via PCA on extractor features).
     - ``parameters``: return trainable parameters to be optimised by the trainer.
-    - ``encode_feature_map``: reverse of ``decode_feature_map``,
-      mapping a ground-truth extractor feature map back into the encoded space
-      at full rendered resolution.  Used to compute a smoothness loss that
-      bypasses avg-pool information loss.
     """
 
     @staticmethod
@@ -25,21 +19,3 @@ class AbstractTrainableFeatureDecoder(AbstractFeatureDecoder):
     @abstractmethod
     def parameters(self):
         return []
-
-    def encode_feature_map(self, feature_map: torch.Tensor, camera: Camera) -> torch.Tensor:
-        """Inverse of ``decode_feature_map``: map extractor GT back to encoded space.
-
-        Reverses the channel mapping and spatial downsampling so the result
-        can be compared pixel-by-pixel with the raw encoded feature map
-        ``(C_enc, H, W)`` at the full rendered resolution.
-
-        Args:
-            feature_map: ``(C_feat, H', W')`` — ground-truth feature map from
-                the extractor (low-resolution, extractor channel space).
-            camera: Camera object containing the target spatial dimensions.
-
-        Returns:
-            ``(C_enc, H, W)`` — feature map projected into the
-            encoded space at full resolution.
-        """
-        return feature_map
