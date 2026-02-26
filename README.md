@@ -110,7 +110,7 @@ dataset, decoder = prepare_dataset_and_decoder(
     device="cuda",
 )
 # dataset is a FeatureCameraDataset; each camera carries a 'feature_map' in custom_data
-# decoder is the learnable AbstractFeatureDecoder
+# decoder is the learnable AbstractTrainableFeatureDecoder
 ```
 
 ### Gaussian Model
@@ -120,7 +120,7 @@ from feature_3dgs.prepare import prepare_gaussians
 
 gaussians = prepare_gaussians(
     decoder=decoder, sh_degree=3,
-    source="data/truck", device="cuda",
+    source="data/truck", dataset=dataset, device="cuda",
 )
 ```
 
@@ -152,7 +152,7 @@ with torch.no_grad():
 
     # Custom linear projection at full resolution (e.g. PCA visualisation)
     weight, bias = ...  # (C, D) and (C,)
-    out = gaussians.forward_linear(camera, weight, bias)
+    out = gaussians.forward_projection(camera, weight, bias)
     projected = out["feature_map"]           # (C, H, W)
 ```
 
@@ -181,29 +181,34 @@ The extractor defines the target feature space (dimension `D` and spatial resolu
 
 ### Decoder (`AbstractFeatureDecoder`)
 
-The decoder is a **learnable** module with three core operations:
+The decoder is a **learnable** module with three core operations (defined on `AbstractFeatureDecoder`):
 
 | Method | Signature | Purpose |
 |---|---|---|
-| `init(dataset)` | — | Build the mapping from data (e.g. PCA initialisation) |
 | `decode_features(features)` | `(N, C_in) → (N, C_out)` | Per-point mapping, usable on per-Gaussian encoded semantics directly |
 | `decode_feature_map(feature_map)` | `(C_in, H, W) → (C_out, H', W')` | Full rendered feature map → extractor output format (channel + spatial) |
+| `decode_feature_pixels(feature_map, weight, bias)` | `(C_in, H, W) → (C_proj, H, W)` | Per-pixel projection: `decode_features` + optional custom linear, spatial resolution preserved |
 
-An additional `transform_feature_map_linear(feature_map, weight, bias)` appends a custom linear projection after `decode_features` at full spatial resolution — useful for PCA visualisation or arbitrary downstream projections.
+The trainable subclass `AbstractTrainableFeatureDecoder` adds:
+
+| Method | Signature | Purpose |
+|---|---|---|
+| `init_semantic(gaussians, dataset)` | static | Build the mapping from data (e.g. PCA initialisation) |
+| `parameters()` | — | Return trainable parameters for the optimiser |
 
 ```
 Encoded semantics ──► Rasteriser ──► Raw Feature Map (embed_dim, H, W)
                                            │
                           ┌────────────────┼────────────────┐
                           ▼                ▼                ▼
-                  decode_feature_map     forward_linear  (stored as
-                          │            (custom linear)   feature_map_encoded)
+                  decode_feature_map  forward_projection (stored as
+                          │           (custom linear)    feature_map_encoded)
                           ▼                ▼
               Decoded Feature Map    Projected Map
                (D, H', W')          (C, H, W)
 ```
 
-The default `decode_feature_map` applies `decode_features` per pixel (no spatial change). Subclasses may override it with **reparameterized** implementations for memory efficiency — e.g. the DINOv3 decoder reparameterizes a linear mapping followed by patch-level average pooling into a single `F.conv2d` call, avoiding a large intermediate tensor. Similarly, `transform_feature_map_linear` reparameterizes two sequential linear layers into one combined projection.
+The default `decode_feature_map` applies `decode_features` per pixel (no spatial change). Subclasses may override it with **reparameterized** implementations for memory efficiency — e.g. the DINOv3 decoder reparameterizes a linear mapping followed by patch-level average pooling into a single `F.conv2d` call, avoiding a large intermediate tensor. Similarly, `decode_feature_pixels` reparameterizes two sequential linear layers into one combined projection.
 
 The training loss is `L1(Decoded Feature Map, Extractor Feature Map)`. The decoder's role is to bridge the gap between the compact per-point embedding (`embed_dim`, typically 32) and the extractor's high-dimensional output (`D`, e.g. 1024 for ViT-L), while also handling any spatial resolution change.
 
@@ -244,41 +249,31 @@ class MyModelExtractor(AbstractFeatureExtractor):
 
 ### Step 2: Implement the Decoder
 
-Create `feature_3dgs/mymodel/decoder.py`. At minimum, implement `decode_features` (per-point mapping) and optionally override `decode_feature_map` for efficiency:
+Create `feature_3dgs/mymodel/decoder.py`. The built-in `LinearDecoder` already provides a trainable `nn.Linear`, PCA-based initialisation, persistence, and reparameterized per-pixel operations. Subclass it and optionally override `decode_feature_map` / `encode_feature_map` if the extractor outputs at a different spatial resolution:
 
 ```python
 import torch
-import torch.nn as nn
-from feature_3dgs.decoder import NoopFeatureDecoder
+import torch.nn.functional as F
+from feature_3dgs.decoder import LinearDecoder
 
-class MyModelDecoder(NoopFeatureDecoder):
-    def __init__(self, in_channels: int, out_channels: int, ...):
-        super().__init__(embed_dim=in_channels)
-        self.linear = nn.Linear(in_channels, out_channels)
-
-    def decode_features(self, features: torch.Tensor) -> torch.Tensor:
-        # features: (N, in_channels)  ->  (N, out_channels)
-        return self.linear(features)
+class MyModelDecoder(LinearDecoder):
+    def __init__(self, in_channels: int, out_channels: int, patch_size: int):
+        super().__init__(in_channels, out_channels)
+        self.patch_size = patch_size
 
     def decode_feature_map(self, feature_map: torch.Tensor) -> torch.Tensor:
         # Optional override for fused / memory-efficient implementation.
-        # Default: applies decode_features per pixel (no spatial change).
-        # Override to add spatial downsampling if needed.
+        # Default (inherited): applies decode_features per pixel (no spatial change).
+        # Override to add spatial downsampling when the extractor outputs at
+        # a lower resolution than the rasteriser (e.g. patch-level).
         ...
 
-    def to(self, device):
-        self.linear = self.linear.to(device)
-        return self
-
-    def load(self, path: str):
-        self.linear.load_state_dict(torch.load(path, weights_only=True))
-
-    def save(self, path: str):
-        torch.save(self.linear.state_dict(), path)
-
-    def parameters(self):
-        return self.linear.parameters()
+    def encode_feature_map(self, feature_map: torch.Tensor, camera) -> torch.Tensor:
+        # Inverse of decode_feature_map. Override if decode_feature_map is overridden.
+        ...
 ```
+
+If your extractor outputs at the same resolution as the rasteriser, you can use `LinearDecoder` directly without subclassing.
 
 The key design constraint: **`decode_feature_map`'s output spatial size and channel count must exactly match the extractor's output**, so that L1 loss can be computed directly.
 
