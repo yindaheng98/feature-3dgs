@@ -1,15 +1,15 @@
 import torch
 import torch.nn.functional as F
 from gaussian_splatting import Camera
-from feature_3dgs.decoder import AbstractLinearDecoder
+from feature_3dgs.decoder import LinearDecoder
 
 from .extractor import padding
 
 
-class DINOv3LinearAvgDecoder(AbstractLinearDecoder):
+class DINOv3LinearAvgDecoder(LinearDecoder):
     """Decoder that aligns Gaussian features with DINOv3 extractor output.
 
-    Extends ``AbstractLinearDecoder`` with patch-level average pooling
+    Extends ``LinearDecoder`` with patch-level average pooling
     (``decode_feature_map``) and bilinear upsampling (``encode_feature_map``)
     to match the spatial resolution of the DINOv3 patch-based extractor.
     """

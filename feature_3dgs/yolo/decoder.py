@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 
-from feature_3dgs.decoder import NoopFeatureDecoder
+from feature_3dgs.decoder import LinearDecoder
 
 
-class YOLODecoder(NoopFeatureDecoder):
+class YOLODecoder(LinearDecoder):
     pass  # TODO

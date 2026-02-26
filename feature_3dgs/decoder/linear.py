@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from feature_3dgs.gaussian_model import SemanticGaussianModel
 
 
-class AbstractLinearDecoder(AbstractTrainableFeatureDecoder):
+class LinearDecoder(AbstractTrainableFeatureDecoder):
     """Trainable linear decoder backed by a single ``nn.Linear(C_enc, C_feat)``.
 
     Provides per-point and per-pixel encode/decode operations, PCA-based
@@ -97,7 +97,7 @@ class AbstractLinearDecoder(AbstractTrainableFeatureDecoder):
           - weight = top-k principal components  (out_channels, in_channels)
           - bias   = feature mean                (out_channels,)
         """
-        self: AbstractLinearDecoder = gaussians.get_decoder
+        self: LinearDecoder = gaussians.get_decoder
         weight, bias = dataset.pca_inverse_transform_params(
             n_components=self.linear.in_features, whiten=False)
         with torch.no_grad():
@@ -113,7 +113,7 @@ class AbstractLinearDecoder(AbstractTrainableFeatureDecoder):
     # Persistence & utilities
     # ------------------------------------------------------------------
 
-    def to(self, device) -> AbstractLinearDecoder:
+    def to(self, device) -> LinearDecoder:
         self.linear = self.linear.to(device)
         return self
 
