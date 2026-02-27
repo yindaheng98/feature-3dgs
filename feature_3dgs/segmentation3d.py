@@ -113,7 +113,7 @@ def save_segmentation(gaussians: SemanticGaussianModel, dataset: FeatureCameraDa
     os.makedirs(save_dir, exist_ok=True)
 
     sim_3d = compute_3d_similarity(query, gaussians)
-    heatmap_colors = similarity_to_colors(sim_3d).to(gaussians.get_xyz.device)
+    heatmap_colors = similarity_to_colors(sim_3d)
     mask_3d = sim_3d > threshold
     seg_opacity = gaussians.get_opacity.clone()
     seg_opacity[~mask_3d] = 0.0

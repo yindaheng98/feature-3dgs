@@ -43,7 +43,7 @@ def colorize_feature_map(
     """
     D, H, W = feature_map.shape
     x = feature_map.reshape(D, -1).permute(1, 0)                  # (H*W, D)
-    x = F.linear(x, weight.to(x.device), bias.to(x.device))       # (H*W, 3)
+    x = F.linear(x, weight, bias)       # (H*W, 3)
     return torch.sigmoid(x.reshape(H, W, 3).permute(2, 0, 1) * 2.0)
 
 

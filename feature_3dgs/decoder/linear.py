@@ -102,11 +102,11 @@ class LinearDecoder(AbstractTrainableFeatureDecoder):
             n_components=self.linear.in_features, whiten=False)
         with torch.no_grad():
             device = self.linear.weight.device
-            self.linear.weight.copy_(weight.to(device))
-            self.linear.bias.copy_(bias.to(device))
+            self.linear.weight.copy_(weight)
+            self.linear.bias.copy_(bias)
         weight, bias = pca_inverse_transform_params_to_transform_params(weight, bias)
-        fused, _ = feature_fusion_alpha_avg(gaussians, dataset, weight.to(device), bias.to(device))
-        # fused, _ = feature_fusion_alpha_max(gaussians, dataset, weight.to(device), bias.to(device))  # worse than avg
+        fused, _ = feature_fusion_alpha_avg(gaussians, dataset, weight, bias)
+        # fused, _ = feature_fusion_alpha_max(gaussians, dataset, weight, bias)  # worse than avg
         gaussians._encoded_semantics = nn.Parameter(fused.requires_grad_(True))
 
     # ------------------------------------------------------------------
