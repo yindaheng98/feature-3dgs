@@ -101,7 +101,6 @@ class LinearDecoder(AbstractTrainableFeatureDecoder):
         weight, bias = dataset.pca_inverse_transform_params(
             n_components=self.linear.in_features, whiten=False)
         with torch.no_grad():
-            device = self.linear.weight.device
             self.linear.weight.copy_(weight)
             self.linear.bias.copy_(bias)
         weight, bias = pca_inverse_transform_params_to_transform_params(weight, bias)
