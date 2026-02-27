@@ -202,6 +202,15 @@ class SemanticGaussianModel(GaussianModel):
         self._encoded_semantics = nn.Parameter(encoded_semantics.requires_grad_(True))
         return self
 
+    def create_from_gaussians(self, gaussians: GaussianModel):
+        self._xyz = gaussians._xyz
+        self._features_dc = gaussians._features_dc
+        self._features_rest = gaussians._features_rest
+        self._scaling = gaussians._scaling
+        self._rotation = gaussians._rotation
+        self._opacity = gaussians._opacity
+        return self.reset_encoded_semantics()
+
     def create_from_pcd(self, points: torch.Tensor, colors: torch.Tensor):
         super().create_from_pcd(points, colors)
         return self.reset_encoded_semantics()
