@@ -52,7 +52,7 @@ def viewer_render_fn(
     feature_map = out["feature_map"]  # (3, H, W)
     rgb = torch.sigmoid(feature_map * 2.0)
 
-    return rgb.permute(1, 2, 0).cpu().numpy()
+    return rgb
 
 
 def viewing(
@@ -66,7 +66,8 @@ def viewing(
     viewer = nerfview.Viewer(
         server=server,
         render_fn=lambda cs, rts: viewer_render_fn(
-            cs, rts, gaussians, device, pca_weight, pca_bias, bg_color),
+            cs, rts, gaussians, device, pca_weight, pca_bias, bg_color
+        ).permute(1, 2, 0).cpu().numpy(),
         mode="rendering",
     )
     print(f"Viewer running on port {port}... Ctrl+C to exit.")
