@@ -53,4 +53,4 @@ class DINOv3LinearAvgDecoder(LinearDecoder):
         full spatial resolution.
         """
         x = self.encode_feature_pixels(feature_map)           # (C_enc, H_p, W_p)
-        return F.interpolate(x.unsqueeze(0), size=(camera.image_height, camera.image_width), mode='bilinear', align_corners=False).squeeze(0)
+        return F.interpolate(x.unsqueeze(0), size=(camera.image_height, camera.image_width), mode='bilinear', align_corners=True).squeeze(0)
