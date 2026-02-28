@@ -6,3 +6,7 @@
 	path = submodules/featurefusion
 	url = https://github.com/yindaheng98/diff-gaussian-rasterization-feature.git
 	branch = featurefusion
+[submodule "submodules/featurepickup"]
+	path = submodules/featurepickup
+	url = https://github.com/yindaheng98/diff-gaussian-rasterization-feature.git
+	branch = featurepickup
