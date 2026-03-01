@@ -51,7 +51,8 @@ def feature_fusion_alpha_avg(
             continue
 
         fm = encode_feature_map(feature_map, camera).permute(1, 2, 0)  # (H, W, C_encoded)
-        assert fm.shape[0] == camera.image_height and fm.shape[1] == camera.image_width, f"Encoded feature map size {fm.shape[:2]} does not match camera image size {(camera.image_height, camera.image_width)}."
+        assert fm.shape[0] == camera.image_height and fm.shape[1] == camera.image_width, (
+            f"Encoded feature map size {fm.shape[:2]} does not match camera image size {(camera.image_height, camera.image_width)}.")
         if mean is None or M2 is None:
             C_encoded = fm.shape[-1]
             mean = torch.zeros((N, C_encoded), device=device, dtype=torch.float32)
