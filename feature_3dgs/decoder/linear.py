@@ -5,8 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .trainable import AbstractTrainableFeatureDecoder
-from feature_3dgs.utils import pca_inverse_transform_params_to_transform_params
-from feature_3dgs.utils.featurefusion import feature_fusion_alpha_avg
+from feature_3dgs.utils.featurefusion import feature_fusion_alpha_avg, feature_fusion_alpha_max
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -103,9 +102,8 @@ class LinearDecoder(AbstractTrainableFeatureDecoder):
         with torch.no_grad():
             self.linear.weight.copy_(weight)
             self.linear.bias.copy_(bias)
-        weight, bias = pca_inverse_transform_params_to_transform_params(weight, bias)
-        fused, _ = feature_fusion_alpha_avg(gaussians, dataset, weight, bias)
-        # fused, _ = feature_fusion_alpha_max(gaussians, dataset, weight, bias)  # worse than avg
+        fused, _ = feature_fusion_alpha_avg(gaussians, dataset, self.encode_feature_map)
+        # fused, _ = feature_fusion_alpha_max(gaussians, dataset, self.encode_feature_map)  # worse than avg
         gaussians._encoded_semantics = nn.Parameter(fused.requires_grad_(True))
 
     # ------------------------------------------------------------------

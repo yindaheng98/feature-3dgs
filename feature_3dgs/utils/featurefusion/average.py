@@ -1,8 +1,8 @@
 import tqdm
 import torch
-import torch.nn.functional as F
-from gaussian_splatting import GaussianModel
+from gaussian_splatting import GaussianModel, Camera
 from feature_3dgs.extractor.dataset import FeatureCameraDataset
+from typing import Callable
 
 from .fusion import feature_fusion
 
@@ -11,24 +11,24 @@ from .fusion import feature_fusion
 def feature_fusion_alpha_avg(
     gaussians: GaussianModel,
     dataset: FeatureCameraDataset,
-    weight: torch.Tensor,
-    bias: torch.Tensor = None,
+    encode_feature_map: Callable[[torch.Tensor, Camera], torch.Tensor],
     fusion_alpha_threshold: float = 0.,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Fuse per-view feature maps into per-Gaussian encoded semantics.
 
-    For every camera in *dataset*, the feature map is linearly projected with
-    (*weight*, *bias*) and then fused onto the Gaussians via the custom
-    rasteriser.  The alpha-weighted mean and variance are computed in a
-    single streaming pass using the Welford/West online algorithm, which is
-    more numerically stable than the naive ``E[X²] - E[X]²`` approach.
+    For every camera in *dataset*, the feature map is transformed by
+    ``encode_feature_map(feature_map, camera)`` and then fused onto the
+    Gaussians via the custom rasteriser.  The alpha-weighted mean and
+    variance are computed in a single streaming pass using the Welford/West
+    online algorithm, which is more numerically stable than the naive
+    ``E[X²] - E[X]²`` approach.
 
     Args:
         gaussians: GaussianModel whose geometry is used for splatting.
         dataset: FeatureCameraDataset - each item must carry
             ``camera.custom_data['feature_map']`` of shape ``(C_ext, H, W)``.
-        weight: ``(C_encoded, C_ext)`` - linear projection weight.
-        bias: ``(C_encoded,)`` or *None* - linear projection bias.
+        encode_feature_map: callable that maps extractor feature map
+            ``(C_ext, H, W)`` to encoded map ``(C_encoded, H, W)`` for a camera.
         fusion_alpha_threshold: passed through to :func:`feature_fusion`.
 
     Returns:
@@ -38,12 +38,11 @@ def feature_fusion_alpha_avg(
         per channel.
     """
     N = gaussians.get_xyz.shape[0]
-    C_encoded = weight.shape[0]
     device = gaussians._xyz.device
 
     W = torch.zeros((N,), device=device, dtype=torch.float32)
-    mean = torch.zeros((N, C_encoded), device=device, dtype=torch.float32)
-    M2 = torch.zeros((N, C_encoded), device=device, dtype=torch.float32)
+    mean = None
+    M2 = None
 
     for idx in tqdm.tqdm(range(len(dataset)), desc="Fusing features"):
         camera = dataset[idx]
@@ -51,14 +50,12 @@ def feature_fusion_alpha_avg(
         if feature_map is None:
             continue
 
-        C_ext, height, width = feature_map.shape
-        fm = feature_map.permute(1, 2, 0).reshape(-1, C_ext)  # (H*W, C_ext)
-        fm = F.linear(fm, weight, bias)                       # (H*W, C_encoded)
-        fm = fm.reshape(height, width, -1)                    # (H, W, C_encoded)
-
-        target_height, target_width = int(camera.image_height), int(camera.image_width)
-        if height != target_height or width != target_width:
-            fm = F.interpolate(fm.permute(2, 0, 1).unsqueeze(0), size=(target_height, target_width), mode='nearest').squeeze(0).permute(1, 2, 0)
+        fm = encode_feature_map(feature_map, camera).permute(1, 2, 0)  # (H, W, C_encoded)
+        assert fm.shape[0] == camera.image_height and fm.shape[1] == camera.image_width, f"Encoded feature map size {fm.shape[:2]} does not match camera image size {(camera.image_height, camera.image_width)}."
+        if mean is None or M2 is None:
+            C_encoded = fm.shape[-1]
+            mean = torch.zeros((N, C_encoded), device=device, dtype=torch.float32)
+            M2 = torch.zeros((N, C_encoded), device=device, dtype=torch.float32)
 
         _, features, features_alpha, _, features_idx = feature_fusion(
             gaussians, camera, fm, fusion_alpha_threshold,
