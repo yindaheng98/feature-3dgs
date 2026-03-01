@@ -4,7 +4,7 @@ from gaussian_splatting import Camera, GaussianModel
 from .diff_gaussian_rasterization import GaussianRasterizer, GaussianRasterizationSettings
 
 
-def feature_pickup(self: GaussianModel, viewpoint_camera: Camera, feature_map: torch.Tensor, fusion_alpha_threshold: float = 0.):
+def feature_pickup(self: GaussianModel, viewpoint_camera: Camera, fusion_alpha_threshold: float = 0.):
     '''Copy of the forward method from gaussian_splatting.GaussianModel, only change the rasterizer'''
     # Create zero tensor. We will use it to make pytorch return gradients of the 2D (screen-space) means
     screenspace_points = torch.zeros_like(self.get_xyz, dtype=self.get_xyz.dtype, requires_grad=True, device=self._xyz.device) + 0
@@ -46,7 +46,6 @@ def feature_pickup(self: GaussianModel, viewpoint_camera: Camera, feature_map: t
 
     # Rasterize visible Gaussians to image, obtain their radii (on screen).
     rendered_image, radii, depth_image, features, features_alpha, pixhit, features_idx = rasterizer(
-        feature_map=feature_map,
         means3D=means3D,
         means2D=means2D,
         shs=shs,
