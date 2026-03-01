@@ -5,7 +5,7 @@ from gaussian_splatting.prepare import prepare_dataset
 from gaussian_splatting.trainer import AbstractTrainer
 from gaussian_splatting.trainer.extensions import ScaleRegularizeTrainerWrapper
 from .extractor import FeatureCameraDataset, TrainableFeatureCameraDataset
-from .decoder import AbstractTrainableFeatureDecoder
+from .decoder import AbstractTrainableDecoder
 from .registry import build_extractor_decoder
 from .gaussian_model import SemanticGaussianModel
 from .trainer import (
@@ -20,7 +20,7 @@ def prepare_dataset_and_decoder(
         name: str, source: str, embed_dim: int, device: str, dataset_cache_device: str = None,
         trainable_camera: bool = False, load_camera: str = None, load_mask=True, load_depth=True,
         configs={},
-) -> Tuple[FeatureCameraDataset, AbstractTrainableFeatureDecoder]:
+) -> Tuple[FeatureCameraDataset, AbstractTrainableDecoder]:
     """Prepare a FeatureCameraDataset and its corresponding decoder.
 
     This is a convenience function that chains together camera loading,
@@ -39,7 +39,7 @@ def prepare_dataset_and_decoder(
 
 
 def prepare_gaussians(
-        decoder: AbstractTrainableFeatureDecoder, sh_degree: int,
+        decoder: AbstractTrainableDecoder, sh_degree: int,
         source: str, dataset: FeatureCameraDataset, device: str,
         trainable_camera: bool = False, load_ply: str = None, load_semantic: bool = True,
 ) -> SemanticGaussianModel:

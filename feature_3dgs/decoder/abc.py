@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from gaussian_splatting import Camera
 
 
-class AbstractFeatureDecoder(ABC):
+class AbstractSemanticDecoder(ABC):
     """Feature decoder that bridges encoded Gaussian semantics and extractor
     feature space.  Provides three core operations:
 
@@ -128,7 +128,7 @@ class AbstractFeatureDecoder(ABC):
         return self.decode_feature_map(feature_map)
 
     @abstractmethod
-    def to(self, device) -> 'AbstractFeatureDecoder':
+    def to(self, device) -> 'AbstractSemanticDecoder':
         return self
 
     @abstractmethod

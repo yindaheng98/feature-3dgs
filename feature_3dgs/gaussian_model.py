@@ -3,12 +3,12 @@ import torch
 import torch.nn as nn
 from gaussian_splatting import GaussianModel, Camera
 from gaussian_splatting.utils import normalize_quaternion, quaternion_to_matrix, quaternion_raw_multiply
-from .decoder.abc import AbstractFeatureDecoder
+from .decoder.abc import AbstractSemanticDecoder
 from .diff_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
 
 
 class SemanticGaussianModel(GaussianModel):
-    def __init__(self, sh_degree: int, decoder: AbstractFeatureDecoder):
+    def __init__(self, sh_degree: int, decoder: AbstractSemanticDecoder):
         super(SemanticGaussianModel, self).__init__(sh_degree)
         self._encoded_semantics = torch.empty(0)
         self._decoder = decoder

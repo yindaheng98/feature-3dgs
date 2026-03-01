@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from .abc import AbstractFeatureDecoder
+from .abc import AbstractSemanticDecoder
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from feature_3dgs.gaussian_model import SemanticGaussianModel
 
 
-class AbstractTrainableFeatureDecoder(AbstractFeatureDecoder):
+class AbstractTrainableDecoder(AbstractSemanticDecoder):
     """Interface for trainable feature decoders that map from extractor feature space to a custom
     feature space.  Provides two more operations:
 

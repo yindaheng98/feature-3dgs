@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .trainable import AbstractTrainableFeatureDecoder
+from .trainable import AbstractTrainableDecoder
 from feature_3dgs.utils.featurefusion import feature_fusion_alpha_avg, feature_fusion_alpha_max
 from feature_3dgs.utils.featurepickup import feature_pickup_alpha_max
 
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from feature_3dgs.gaussian_model import SemanticGaussianModel
 
 
-class LinearDecoder(AbstractTrainableFeatureDecoder):
+class LinearDecoder(AbstractTrainableDecoder):
     """Trainable linear decoder backed by a single ``nn.Linear(C_enc, C_feat)``.
 
     Provides per-point and per-pixel encode/decode operations, PCA-based

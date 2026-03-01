@@ -1,3 +1,3 @@
-from .abc import AbstractFeatureDecoder
-from .trainable import AbstractTrainableFeatureDecoder
+from .abc import AbstractSemanticDecoder
+from .trainable import AbstractTrainableDecoder
 from .linear import LinearDecoder
