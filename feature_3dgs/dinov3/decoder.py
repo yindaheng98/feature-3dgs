@@ -14,7 +14,7 @@ class DINOv3LinearAvgDecoder(LinearDecoder):
     to match the spatial resolution of the DINOv3 patch-based extractor.
     """
 
-    def __init__(self, in_channels: int, out_channels: int, patch_size: int):
+    def __init__(self, *args, patch_size: int, **configs):
         """
         Args:
             in_channels:  Per-point semantic embedding dimension rendered by
@@ -22,7 +22,7 @@ class DINOv3LinearAvgDecoder(LinearDecoder):
             out_channels: Feature dimension D produced by DINOv3Extractor.
             patch_size:   Patch size used by the paired DINOv3Extractor.
         """
-        super().__init__(in_channels, out_channels)
+        super().__init__(*args, **configs)
         self.patch_size = patch_size
 
     def decode_feature_map(self, feature_map: torch.Tensor) -> torch.Tensor:

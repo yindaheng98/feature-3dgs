@@ -104,12 +104,13 @@ FEATURE_DIMS = {
 
 
 def build_factory(version: str):
-    def factory(embed_dim: int, checkpoint_dir="checkpoints") -> Tuple[AbstractFeatureExtractor, AbstractTrainableFeatureDecoder]:
+    def factory(embed_dim: int, checkpoint_dir="checkpoints", **configs) -> Tuple[AbstractFeatureExtractor, AbstractTrainableFeatureDecoder]:
         extractor = DINOv3ViTExtractor(version, checkpoint_dir=checkpoint_dir)
         decoder = DINOv3LinearAvgDecoder(
             in_channels=embed_dim,
             out_channels=FEATURE_DIMS[version],
             patch_size=PATCH_SIZE,
+            **configs
         )
         return extractor, decoder
     return factory

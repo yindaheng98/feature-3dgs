@@ -80,13 +80,14 @@ CONVNEXT_FEATURE_DIMS = {
 }
 
 
-def build_factory(version: str):
+def build_factory(version: str, **configs):
     def factory(embed_dim: int, checkpoint_dir="checkpoints") -> Tuple[AbstractFeatureExtractor, AbstractTrainableFeatureDecoder]:
         extractor = DINOv3ConvNextExtractor(version, checkpoint_dir=checkpoint_dir)
         decoder = DINOv3LinearAvgDecoder(
             in_channels=embed_dim,
             out_channels=CONVNEXT_FEATURE_DIMS[version],
             patch_size=INPUT_PAD_SIZE,
+            **configs
         )
         return extractor, decoder
     return factory
