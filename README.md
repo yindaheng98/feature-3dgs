@@ -110,7 +110,7 @@ dataset, decoder = prepare_dataset_and_decoder(
     device="cuda",
 )
 # dataset is a FeatureCameraDataset; each camera carries a 'feature_map' in custom_data
-# decoder is the learnable AbstractTrainableFeatureDecoder
+# decoder is the learnable AbstractTrainableDecoder
 ```
 
 ### Gaussian Model
@@ -179,9 +179,9 @@ Image (C, H, W)  ──► Extractor (frozen) ──► Feature Map (D, H', W')
 
 The extractor defines the target feature space (dimension `D` and spatial resolution `H'×W'`). It is never updated during training.
 
-### Decoder (`AbstractFeatureDecoder`)
+### Decoder (`AbstractSemanticDecoder`)
 
-The decoder is a **learnable** module with three core operations (defined on `AbstractFeatureDecoder`):
+The decoder is a **learnable** module with three core operations (defined on `AbstractSemanticDecoder`):
 
 | Method | Signature | Purpose |
 |---|---|---|
@@ -189,7 +189,7 @@ The decoder is a **learnable** module with three core operations (defined on `Ab
 | `decode_feature_map(feature_map)` | `(C_in, H, W) → (C_out, H', W')` | Full rendered feature map → extractor output format (channel + spatial) |
 | `decode_feature_pixels(feature_map, weight, bias)` | `(C_in, H, W) → (C_proj, H, W)` | Per-pixel projection: `decode_features` + optional custom linear, spatial resolution preserved |
 
-The trainable subclass `AbstractTrainableFeatureDecoder` adds:
+The trainable subclass `AbstractTrainableDecoder` adds:
 
 | Method | Signature | Purpose |
 |---|---|---|
