@@ -4,3 +4,4 @@ from .extractor import AbstractFeatureExtractor, FeatureCameraDataset, Trainable
 from .registry import register_extractor_decoder, get_available_extractor_decoders, build_extractor_decoder
 from . import dinov3
 from . import yolo
+from . import vggt

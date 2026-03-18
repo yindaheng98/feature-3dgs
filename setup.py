@@ -42,7 +42,7 @@ if os.name == 'nt':
 
 setup(
     name="feature_3dgs",
-    version='1.7.2',
+    version='1.8.0',
     author='yindaheng98',
     author_email='yindaheng98@gmail.com',
     url='https://github.com/yindaheng98/gaussian-splatting',
@@ -89,5 +89,9 @@ setup(
         'open3d',
         'gaussian-splatting >= 2.3.0',
         'scikit-learn',
+        # VGGT and its dependencies
+        'vggt @ git+https://github.com/facebookresearch/vggt.git',
+        'pycolmap',
+        'lightglue @ git+https://github.com/jytime/LightGlue.git#egg=lightglue',
     ]
 )

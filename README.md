@@ -36,6 +36,8 @@ pip install --target . --upgrade . --no-deps
 
 ### Download Checkpoints
 
+#### DINOv3
+
 Request access and download [DINOv3](https://github.com/facebookresearch/dinov3) weights to `checkpoints/`:
 
 ```
@@ -51,6 +53,12 @@ checkpoints/
  ├── dinov3_vits16_pretrain_lvd1689m-08c60483.pth
  ├── dinov3_vits16plus_pretrain_lvd1689m-4057cbaa.pth
  └── ...
+```
+
+#### VGGT
+
+```sh
+wget -P checkpoints/ https://huggingface.co/facebook/VGGT-1B-Commercial/resolve/main/vggt_1B_commercial.pt --header="Authorization: Bearer $HF_TOKEN"
 ```
 
 ## Command-Line Usage
