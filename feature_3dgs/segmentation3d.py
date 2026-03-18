@@ -150,6 +150,7 @@ if __name__ == "__main__":
     parser.add_argument("--device", default="cuda", type=str)
     parser.add_argument("--dataset_cache_device", default="cpu", type=str)
     parser.add_argument("--no_image_mask", action="store_true")
+    parser.add_argument("--no_preload_dataset_cache", action="store_true")
     parser.add_argument("-e", "--option_extractor", default=[], action='append', type=str)
     parser.add_argument("-n", "--image_index", required=True, type=int)
     parser.add_argument("-x", required=True, type=int)
@@ -167,6 +168,7 @@ if __name__ == "__main__":
             trainable_camera=args.mode == "camera",
             load_ply=load_ply, load_camera=args.load_camera,
             load_mask=not args.no_image_mask,
+            preload_cache=not args.no_preload_dataset_cache,
             extractor_configs=extractor_configs,
         )
         feature = get_feature(dataset, args.image_index, args.x, args.y)
