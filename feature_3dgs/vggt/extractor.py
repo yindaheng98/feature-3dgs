@@ -12,7 +12,7 @@ def padding(image: torch.Tensor, patch_size: int) -> torch.Tensor:
     pad_h = (patch_size - h % patch_size) % patch_size
     pad_w = (patch_size - w % patch_size) % patch_size
     if pad_h or pad_w:
-        image = F.pad(image, (0, pad_w, 0, pad_h), mode="reflect")
+        image = F.pad(image, (0, pad_w, 0, pad_h), mode='constant', value=0)
     return image
 
 
@@ -85,7 +85,7 @@ class VGGTExtractor(AbstractFeatureExtractor):
             left = left_patches * VP
 
             frame = x.new_zeros(3, sq_size, sq_size)
-            frame[:, top : top + h_p * VP, left : left + w_p * VP] = x
+            frame[:, top: top + h_p * VP, left: left + w_p * VP] = x
             frames.append(frame)
             offsets.append((top_patches, left_patches))
 
@@ -102,13 +102,14 @@ class VGGTExtractor(AbstractFeatureExtractor):
             aggregated_tokens_list, ps_idx = self.model.aggregator(batch)
 
         # 5. Extract per-image features from last-layer patch tokens
-        tokens = aggregated_tokens_list[-1]      # (B*S, num_tokens, D)
-        patch_tokens = tokens[:, ps_idx:, :]     # (S, sq_patches^2, D)
+        #    aggregator output shape: (B, S, P, 2*C) where P includes special tokens
+        tokens = aggregated_tokens_list[-1]          # (1, S, P, 2*C)
+        patch_tokens = tokens[0, :, ps_idx:, :]      # (S, sq_patches^2, D)
         D = patch_tokens.shape[-1]
 
         for i, ((h_p, w_p), (top_p, left_p)) in enumerate(zip(patch_sizes, offsets)):
             grid = patch_tokens[i].view(sq_patches, sq_patches, D)
-            feat = grid[top_p : top_p + h_p, left_p : left_p + w_p, :]
+            feat = grid[top_p: top_p + h_p, left_p: left_p + w_p, :]
             yield feat.permute(2, 0, 1).contiguous()  # (D, h_p, w_p)
 
     def to(self, device) -> "VGGTExtractor":
