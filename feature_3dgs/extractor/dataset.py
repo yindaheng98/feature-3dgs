@@ -46,9 +46,12 @@ class FeatureCameraDataset(CameraDataset):
         return self[0].custom_data['feature_map'].shape[0]
 
     def preload_cache(self):
-        for idx in tqdm.tqdm(range(len(self.cameras)), desc="Preloading feature maps"):
-            _ = self[idx]
-            del _
+        self.feature_map_cache = []
+        feature_maps = self.extractor.extract_all(cam.ground_truth_image for cam in self.cameras)
+        for feature_map in tqdm.tqdm(feature_maps, total=len(self.cameras), desc="Preloading feature maps"):
+            if self.cache_device is not None:
+                feature_map = feature_map.to(self.cache_device)
+            self.feature_map_cache.append(feature_map)
         del self.extractor
 
     def pca_inverse_transform_params(self, n_components: int, whiten: bool = False) -> tuple[torch.Tensor, torch.Tensor]:

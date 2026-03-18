@@ -12,12 +12,12 @@ def prepare_training(
         name: str, sh_degree: int, mode: str, source: str, embed_dim: int, device: str, dataset_cache_device: str = None,
         trainable_camera: bool = False, load_ply: str = None, load_camera: str = None,
         load_mask=True, load_depth=True, load_semantic: bool = True,
-        configs={}, extractor_configs={},
+        preload_cache: bool = False, configs={}, extractor_configs={},
 ) -> Tuple[FeatureCameraDataset, SemanticGaussianModel, AbstractTrainer]:
     dataset, decoder = prepare_dataset_and_decoder(
         name=name, source=source, embed_dim=embed_dim, device=device, dataset_cache_device=dataset_cache_device,
         trainable_camera=trainable_camera, load_camera=load_camera,
-        load_mask=load_mask, load_depth=load_depth, configs=extractor_configs)
+        load_mask=load_mask, load_depth=load_depth, preload_cache=preload_cache, configs=extractor_configs)
     gaussians = prepare_gaussians(
         decoder=decoder, sh_degree=sh_degree, source=source, dataset=dataset, device=device,
         trainable_camera=trainable_camera, load_ply=load_ply, load_semantic=load_semantic)
@@ -62,10 +62,8 @@ if __name__ == "__main__":
         trainable_camera="camera" in args.mode,
         load_ply=args.load_ply, load_camera=args.load_camera,
         load_mask=not args.no_image_mask, load_depth=not args.no_depth_data, load_semantic=not args.no_load_semantic,
-        configs=configs, extractor_configs=extractor_configs)
+        preload_cache=args.preload_dataset_cache, configs=configs, extractor_configs=extractor_configs)
     dataset.save_cameras(os.path.join(args.destination, "cameras.json"))
-    if args.preload_dataset_cache:
-        dataset.preload_cache()
     torch.cuda.empty_cache()
     training(
         dataset=dataset, gaussians=gaussians, trainer=trainer,
