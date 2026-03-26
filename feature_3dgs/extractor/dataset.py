@@ -32,6 +32,7 @@ class FeatureCameraDataset(CameraDataset):
                 if self.cache_device is not None:
                     feature_map = feature_map.to(self.cache_device)
                 self.feature_map_cache[idx] = feature_map
+                torch.cuda.empty_cache()
             feature_map = self.feature_map_cache[idx].to(camera.ground_truth_image.device)
         return camera._replace(custom_data={**camera.custom_data, 'feature_map': feature_map})
 
@@ -52,6 +53,7 @@ class FeatureCameraDataset(CameraDataset):
             if self.cache_device is not None:
                 feature_map = feature_map.to(self.cache_device)
             self.feature_map_cache.append(feature_map)
+            torch.cuda.empty_cache()
         del self.extractor
 
     def pca_inverse_transform_params(self, n_components: int, whiten: bool = False) -> tuple[torch.Tensor, torch.Tensor]:
