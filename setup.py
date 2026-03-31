@@ -42,7 +42,7 @@ if os.name == 'nt':
 
 setup(
     name="feature_3dgs",
-    version='1.8.3',
+    version='1.8.4',
     author='yindaheng98',
     author_email='yindaheng98@gmail.com',
     url='https://github.com/yindaheng98/gaussian-splatting',
@@ -78,19 +78,10 @@ setup(
         'build_ext': BuildExtension
     },
     install_requires=[
-        'torch',
-        'torchvision',
-        'tqdm',
-        'plyfile',
-        'tifffile',
-        'numpy',
-        'opencv-python',
-        'pillow',
-        'open3d',
         'gaussian-splatting >= 2.3.0',
         'scikit-learn',
         # VGGT and its dependencies
-        'vggt @ git+https://github.com/facebookresearch/vggt.git',
+        'vggt @ git+https://github.com/facebookresearch/vggt.git', # TODO: should use map-anything
         'pycolmap',
         'lightglue @ git+https://github.com/jytime/LightGlue.git#egg=lightglue',
         # YOLO and its dependencies
