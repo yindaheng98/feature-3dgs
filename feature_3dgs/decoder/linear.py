@@ -25,6 +25,7 @@ class LinearDecoder(AbstractTrainableDecoder):
     """
 
     def __init__(self, in_channels: int, out_channels: int, init_method="fusion avg"):
+        super().__init__()
         self.linear = nn.Linear(in_channels, out_channels)
         assert init_method in ["pickup max", "fusion avg", "fusion max"], f"Unsupported init method {init_method}"
         self.init_method = init_method
@@ -112,24 +113,6 @@ class LinearDecoder(AbstractTrainableDecoder):
         elif self.init_method == "fusion max":
             fused, _ = feature_fusion_alpha_max(gaussians, dataset, self.encode_feature_map)  # worse than avg
         gaussians._encoded_semantics = nn.Parameter(fused.requires_grad_(True))
-
-    # ------------------------------------------------------------------
-    # Persistence & utilities
-    # ------------------------------------------------------------------
-
-    def to(self, device) -> LinearDecoder:
-        self.linear = self.linear.to(device)
-        return self
-
-    def load(self, path: str) -> None:
-        state_dict = torch.load(path, weights_only=True)
-        self.linear.load_state_dict(state_dict)
-
-    def save(self, path: str) -> None:
-        torch.save(self.linear.state_dict(), path)
-
-    def parameters(self):
-        return self.linear.parameters()
 
     @property
     def embed_dim(self) -> int:

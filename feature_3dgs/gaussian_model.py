@@ -210,14 +210,16 @@ class SemanticGaussianModel(GaussianModel):
         super().save_ply(path)
         encoded_semantics = self._encoded_semantics.detach()
         torch.save(encoded_semantics, path + '.semantic.pt')
-        self._decoder.save(path + '.decoder.pt')
+        state_dict = self._decoder.state_dict()
+        torch.save(state_dict, path + '.decoder.pt')
 
     def load_ply(self, path: str, load_semantic: bool = True):
         super().load_ply(path)
         if load_semantic:
             encoded_semantics = torch.load(path + '.semantic.pt').to(self._xyz.device)
             self._encoded_semantics = nn.Parameter(encoded_semantics.requires_grad_(True))
-            self._decoder.load(path + '.decoder.pt')
+            state_dict = torch.load(path + '.decoder.pt', map_location=self._xyz.device, weights_only=True)
+            self._decoder.load_state_dict(state_dict)
         else:
             self.reset_encoded_semantics()
 
