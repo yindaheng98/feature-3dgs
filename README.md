@@ -25,7 +25,6 @@ Each Gaussian point carries a learnable **encoded semantics** embedding alongsid
 ### Install
 
 ```shell
-pip install --upgrade git+https://github.com/facebookresearch/dinov3@main
 pip install --upgrade git+https://github.com/yindaheng98/gaussian-splatting.git@master --no-build-isolation
 pip install --upgrade git+https://github.com/yindaheng98/feature-3dgs.git@main --no-build-isolation
 # or

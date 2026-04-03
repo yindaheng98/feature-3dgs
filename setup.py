@@ -42,7 +42,7 @@ if os.name == 'nt':
 
 setup(
     name="feature_3dgs",
-    version='1.9.0',
+    version='1.9.1',
     author='yindaheng98',
     author_email='yindaheng98@gmail.com',
     url='https://github.com/yindaheng98/gaussian-splatting',
@@ -80,6 +80,8 @@ setup(
     install_requires=[
         'gaussian-splatting >= 2.3.0',
         'scikit-learn',
+        # dinov3
+        'dinov3 @ git+https://github.com/facebookresearch/dinov3.git',
         # VGGT and its dependencies
         'vggt @ git+https://github.com/facebookresearch/vggt.git', # TODO: should use map-anything
         'pycolmap',
