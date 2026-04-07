@@ -5,7 +5,7 @@
 [submodule "submodules/featurefusion"]
 	path = submodules/featurefusion
 	url = https://github.com/yindaheng98/diff-gaussian-rasterization-feature.git
-	branch = featurefusion
+	branch = featurefusion-numericstable
 [submodule "submodules/featurepickup"]
 	path = submodules/featurepickup
 	url = https://github.com/yindaheng98/diff-gaussian-rasterization-feature.git
