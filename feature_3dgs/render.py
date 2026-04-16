@@ -14,7 +14,7 @@ from feature_3dgs.utils import pca_transform_params
 
 def prepare_rendering(
         name: str, sh_degree: int, source: str, embed_dim: int, device: str, dataset_cache_device: str = None,
-        trainable_camera: bool = False, load_ply: str = None, load_camera: str = None,
+        trainable_camera: bool = False, load_ply: str = None, load_decoder: str = None, load_camera: str = None,
         load_mask=True, preload_cache: bool = True, extractor_configs={}) -> Tuple[FeatureCameraDataset, SemanticGaussianModel]:
     dataset, decoder = prepare_dataset_and_decoder(
         name=name, source=source, embed_dim=embed_dim, device=device, dataset_cache_device=dataset_cache_device,
@@ -22,7 +22,7 @@ def prepare_rendering(
         load_mask=load_mask, load_depth=False, preload_cache=preload_cache, configs=extractor_configs)
     gaussians = prepare_gaussians(
         decoder=decoder, sh_degree=sh_degree, source=source, dataset=dataset, device=device,
-        trainable_camera=trainable_camera, load_ply=load_ply)
+        trainable_camera=trainable_camera, load_ply=load_ply, load_decoder=load_decoder)
     return dataset, gaussians
 
 
@@ -90,6 +90,7 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--source", required=True, type=str)
     parser.add_argument("-d", "--destination", required=True, type=str)
     parser.add_argument("-i", "--iteration", required=True, type=int)
+    parser.add_argument("--load_decoder", default=None, type=str)
     parser.add_argument("--load_camera", default=None, type=str)
     parser.add_argument("--mode", choices=["base", "camera"], default="base")
     parser.add_argument("--device", default="cuda", type=str)
@@ -107,7 +108,7 @@ if __name__ == "__main__":
             source=args.source, embed_dim=args.embed_dim,
             device=args.device, dataset_cache_device=args.dataset_cache_device,
             trainable_camera=args.mode == "camera",
-            load_ply=load_ply, load_camera=args.load_camera,
+            load_ply=load_ply, load_decoder=args.load_decoder, load_camera=args.load_camera,
             load_mask=not args.no_image_mask,
             preload_cache=not args.no_preload_dataset_cache,
             extractor_configs=extractor_configs)

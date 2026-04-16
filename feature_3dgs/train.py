@@ -10,7 +10,7 @@ from feature_3dgs.prepare import prepare_dataset_and_decoder, prepare_gaussians,
 
 def prepare_training(
         name: str, sh_degree: int, mode: str, source: str, embed_dim: int, device: str, dataset_cache_device: str = None,
-        trainable_camera: bool = False, load_ply: str = None, load_camera: str = None,
+        trainable_camera: bool = False, load_ply: str = None, load_decoder: str = None, load_camera: str = None,
         load_mask=True, load_depth=True, load_semantic: bool = True,
         preload_cache: bool = True, configs={}, extractor_configs={},
 ) -> Tuple[FeatureCameraDataset, SemanticGaussianModel, AbstractTrainer]:
@@ -20,7 +20,7 @@ def prepare_training(
         load_mask=load_mask, load_depth=load_depth, preload_cache=preload_cache, configs=extractor_configs)
     gaussians = prepare_gaussians(
         decoder=decoder, sh_degree=sh_degree, source=source, dataset=dataset, device=device,
-        trainable_camera=trainable_camera, load_ply=load_ply, load_semantic=load_semantic)
+        trainable_camera=trainable_camera, load_ply=load_ply, load_semantic=load_semantic, load_decoder=load_decoder)
     trainer = prepare_trainer(
         gaussians=gaussians, dataset=dataset, mode=mode,
         trainable_camera=trainable_camera, configs=configs)
@@ -37,6 +37,7 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--destination", required=True, type=str)
     parser.add_argument("-i", "--iteration", default=30000, type=int)
     parser.add_argument("-l", "--load_ply", default=None, type=str)
+    parser.add_argument("--load_decoder", default=None, type=str)
     parser.add_argument("--load_camera", default=None, type=str)
     parser.add_argument("--no_image_mask", action="store_true")
     parser.add_argument("--no_depth_data", action="store_true")
@@ -60,7 +61,7 @@ if __name__ == "__main__":
         source=args.source, embed_dim=args.embed_dim,
         device=args.device, dataset_cache_device=args.dataset_cache_device,
         trainable_camera="camera" in args.mode,
-        load_ply=args.load_ply, load_camera=args.load_camera,
+        load_ply=args.load_ply, load_decoder=args.load_decoder, load_camera=args.load_camera,
         load_mask=not args.no_image_mask, load_depth=not args.no_depth_data, load_semantic=not args.no_load_semantic,
         preload_cache=not args.no_preload_dataset_cache, configs=configs, extractor_configs=extractor_configs)
     dataset.save_cameras(os.path.join(args.destination, "cameras.json"))
