@@ -17,6 +17,15 @@ class AbstractTrainableDecoder(AbstractSemanticDecoder):
     """
 
     @staticmethod
-    def init_semantic(gaussians: SemanticGaussianModel, dataset: FeatureCameraDataset):
-        """Build the feature mapping from data (e.g. PCA). Called before training."""
+    def init_semantic(
+            gaussians: SemanticGaussianModel,
+            dataset: FeatureCameraDataset,
+            decoder: AbstractSemanticDecoder | None = None):
+        """Build the feature mapping from data (e.g. PCA). Called before training.
+
+        Args:
+            gaussians: Target Gaussian model whose decoder / semantics will be initialized.
+            dataset: Dataset used to initialize semantic features.
+            decoder: Optional preloaded decoder to reuse during initialization.
+        """
         pass

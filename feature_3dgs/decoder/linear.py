@@ -92,20 +92,35 @@ class LinearDecoder(AbstractTrainableDecoder):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def init_semantic(gaussians: SemanticGaussianModel, dataset: FeatureCameraDataset):
-        """Initialise linear layer weights via PCA on the extractor features.
+    def init_semantic(
+            gaussians: SemanticGaussianModel,
+            dataset: FeatureCameraDataset,
+            decoder: LinearDecoder | None = None):
+        """Initialise semantics from PCA or a preloaded linear decoder.
 
-        Collects all feature vectors from the dataset, computes PCA, and
-        sets ``self.linear`` so that it initially performs PCA reconstruction:
+        When *decoder* is None, collects all feature vectors from the
+        dataset, computes PCA, and sets ``self.linear`` so that it initially
+        performs PCA reconstruction:
           - weight = top-k principal components  (out_channels, in_channels)
           - bias   = feature mean                (out_channels,)
+
+        When *decoder* is provided, copies its linear weights before
+        computing the fused encoded semantics.
         """
         self: LinearDecoder = gaussians.get_decoder
-        weight, bias = dataset.pca_inverse_transform_params(
-            n_components=self.linear.in_features, whiten=False)
-        with torch.no_grad():
-            self.linear.weight.copy_(weight)
-            self.linear.bias.copy_(bias)
+        if decoder is None:
+            weight, bias = dataset.pca_inverse_transform_params(
+                n_components=self.linear.in_features, whiten=False)
+            with torch.no_grad():
+                self.linear.weight.copy_(weight)
+                self.linear.bias.copy_(bias)
+        else:
+            if not isinstance(decoder, LinearDecoder):
+                raise TypeError(f"Expected LinearDecoder, got {type(decoder)!r}")
+            if decoder is not self:
+                with torch.no_grad():
+                    self.linear.weight.copy_(decoder.linear.weight)
+                    self.linear.bias.copy_(decoder.linear.bias)
         if self.init_method == "pickup max":
             fused, _ = feature_pickup_alpha_max(gaussians, dataset, self.encode_feature_pixels)
         elif self.init_method == "fusion avg":
