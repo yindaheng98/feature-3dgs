@@ -39,10 +39,11 @@ nvcc_compiler_flags = []
 if os.name == 'nt':
     cxx_compiler_flags.append("/wd4624")
     nvcc_compiler_flags.append("-allow-unsupported-compiler")
+pypi_build = os.environ.get("PYPI_BUILD", "").lower() in {"1", "true", "yes", "on"}
 
 setup(
     name="feature_3dgs",
-    version='1.9.4.1',
+    version='1.9.4.2',
     author='yindaheng98',
     author_email='yindaheng98@gmail.com',
     url='https://github.com/yindaheng98/feature-3dgs',
@@ -80,11 +81,14 @@ setup(
     install_requires=[
         'gaussian-splatting >= 2.3.0',
         'scikit-learn',
+    ]+([
         # dinov3
         'dinov3 @ git+https://github.com/facebookresearch/dinov3.git',
         # VGGT and its dependencies
-        'vggt @ git+https://github.com/facebookresearch/vggt.git', # TODO: should use map-anything
-        'pycolmap',
+        'Pillow',
+        'hydra-core',
+        'omegaconf',
+        'vggt @ git+https://github.com/facebookresearch/vggt.git',
         'lightglue @ git+https://github.com/jytime/LightGlue.git#egg=lightglue',
-    ]
+    ] if not pypi_build else []),
 )

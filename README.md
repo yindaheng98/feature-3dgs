@@ -20,14 +20,36 @@ Each Gaussian point carries a learnable **encoded semantics** embedding alongsid
 
 * [Pytorch](https://pytorch.org/) (>= v2.4 recommended)
 * [CUDA Toolkit](https://developer.nvidia.com/cuda-12-4-0-download-archive) (12.4 recommended, match with PyTorch version)
-* [gsplat](https://github.com/nerfstudio-project/gsplat)
 
-### Install
+Install `dinov3` and `vggt`:
+```shell
+pip install --upgrade git+https://github.com/facebookresearch/dinov3.git@main
+pip install --upgrade git+https://github.com/facebookresearch/vggt.git@main
+pip install --upgrade Pillow hydra-core omegaconf # deps for vggt
+pip install --upgrade git+https://github.com/jytime/LightGlue.git#egg=lightglue # deps for vggt
+```
+
+(Optional) If you have trouble with [`gaussian-splatting`](https://github.com/yindaheng98/gaussian-splatting), try to install it from source:
+```sh
+pip install wheel setuptools
+pip install --upgrade git+https://github.com/yindaheng98/gaussian-splatting.git@master --no-build-isolation
+```
+
+## PyPI Install
 
 ```shell
-pip install --upgrade git+https://github.com/yindaheng98/gaussian-splatting.git@master --no-build-isolation
+pip install --upgrade feature-3dgs
+```
+or
+build latest from source:
+```shell
+pip install wheel setuptools
 pip install --upgrade git+https://github.com/yindaheng98/feature-3dgs.git@main --no-build-isolation
-# or
+```
+
+### Development Install
+
+```shell
 git clone --recursive https://github.com/yindaheng98/feature-3dgs.git
 cd feature-3dgs
 pip install --target . --upgrade . --no-deps

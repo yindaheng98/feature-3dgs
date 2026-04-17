@@ -36,7 +36,8 @@ jobs:
       - name: Build package
         run: python setup.py bdist_wheel sdist
         env:
+          PYPI_BUILD: "true"
           TORCH_CUDA_ARCH_LIST: Turing
       - name: Publish release
         run: |
-          python -m twine upload dist/* --username __token__ --password ${{ secrets.PIP_API_TOKEN }} --skip-existing
+          python -m twine upload dist/* --username __token__ --password ${{ secrets.PIP_API_TOKEN }} --skip-existing --verbose
