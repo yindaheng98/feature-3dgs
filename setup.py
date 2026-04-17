@@ -42,10 +42,10 @@ if os.name == 'nt':
 
 setup(
     name="feature_3dgs",
-    version='1.9.3',
+    version='1.9.3.1',
     author='yindaheng98',
     author_email='yindaheng98@gmail.com',
-    url='https://github.com/yindaheng98/gaussian-splatting',
+    url='https://github.com/yindaheng98/feature-3dgs',
     description=u'Refactored python training and inference code for 3D Gaussian Splatting',
     long_description=long_description,
     long_description_content_type="text/markdown",
