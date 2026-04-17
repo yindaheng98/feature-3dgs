@@ -42,7 +42,7 @@ if os.name == 'nt':
 
 setup(
     name="feature_3dgs",
-    version='1.9.3.1',
+    version='1.9.4.1',
     author='yindaheng98',
     author_email='yindaheng98@gmail.com',
     url='https://github.com/yindaheng98/feature-3dgs',
@@ -86,7 +86,5 @@ setup(
         'vggt @ git+https://github.com/facebookresearch/vggt.git', # TODO: should use map-anything
         'pycolmap',
         'lightglue @ git+https://github.com/jytime/LightGlue.git#egg=lightglue',
-        # YOLO and its dependencies
-        'ultralytics',
     ]
 )
