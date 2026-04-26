@@ -8,8 +8,8 @@ from feature_3dgs.extractor import AbstractFeatureExtractor
 from feature_3dgs.decoder import AbstractTrainableDecoder
 from feature_3dgs.registry import register_extractor_decoder
 
-from .extractor import VGGTExtractor, FEAT_SIZE
-from .track import VGGTrackExtractor, FEAT_SIZE as TRACK_FEAT_SIZE
+from .extractor import VGGTExtractor, FEAT_SIZE, PATCH_SIZE
+from .track import VGGTrackExtractor, FEAT_SIZE as TRACK_FEAT_SIZE, PATCH_SIZE as TRACK_PATCH_SIZE
 from .decoder import VGGTLinearAvgDecoder
 
 FEATURE_DIM = 2048              # 2 * embed_dim (1024)
@@ -45,6 +45,7 @@ def build_factory():
             in_channels=embed_dim,
             out_channels=FEATURE_DIM,
             feat_size=FEAT_SIZE,
+            kernel_size=PATCH_SIZE,
             **configs,
         )
         return extractor, decoder
@@ -58,6 +59,7 @@ def build_track_factory():
             in_channels=embed_dim,
             out_channels=TRACK_FEATURE_DIM,
             feat_size=TRACK_FEAT_SIZE,
+            kernel_size=TRACK_PATCH_SIZE,
             **configs,
         )
         return extractor, decoder
