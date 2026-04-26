@@ -5,7 +5,8 @@ import torch.nn.functional as F
 
 from .extractor import VGGTExtractor, RESOLUTION, padding_square, compute_square_valid_region
 
-FEAT_SIZE = RESOLUTION // 2  # 259, DPT head with down_ratio=2
+PATCH_SIZE = 2
+FEAT_SIZE = RESOLUTION // PATCH_SIZE  # 259, DPT head with down_ratio=2
 
 
 class VGGTrackExtractor(VGGTExtractor):
