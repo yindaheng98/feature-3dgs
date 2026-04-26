@@ -10,11 +10,20 @@ class VGGTLinearAvgDecoder(LinearDecoder):
     """Decoder that aligns Gaussian features with VGGTExtractor output.
 
     ``decode_feature_map``: adaptive average-pool to match the extractor's
-    patch grid, then linear projection (channel up).
+    feature grid, then linear projection (channel up).
 
     ``encode_feature_map``: linear inverse projection (channel down), then
     bilinear upsample to full image resolution.
+
+    Args:
+        feat_size: spatial size of the extractor's square feature grid.
+            37 for ``VGGTExtractor`` (patch tokens), 259 for
+            ``VGGTrackExtractor`` (DPT feature map with down_ratio=2).
     """
+
+    def __init__(self, in_channels: int, out_channels: int, feat_size: int, **kwargs):
+        super().__init__(in_channels, out_channels, **kwargs)
+        self.feat_size = feat_size
 
     def decode_feature_map(self, feature_map: torch.Tensor) -> torch.Tensor:
         """Fused avg-pool + linear via a single ``F.conv2d``.
@@ -25,7 +34,7 @@ class VGGTLinearAvgDecoder(LinearDecoder):
         """
         _, H, W = feature_map.shape
         # 1. Pad feature_map to exact multiples of (h_p, w_p)
-        h_p, w_p = compute_patch_grid_size(H, W)
+        h_p, w_p = compute_patch_grid_size(H, W, self.feat_size)
         pad_h = (h_p - H % h_p) % h_p
         pad_w = (w_p - W % w_p) % w_p
         if pad_h or pad_w:
