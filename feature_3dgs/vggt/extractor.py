@@ -5,35 +5,36 @@ import torch.nn.functional as F
 
 from feature_3dgs.extractor import AbstractFeatureExtractor
 
+RESOLUTION = 518
+PATCH_SIZE = 14
+N_PATCHES = RESOLUTION // PATCH_SIZE  # 37
 
-def padding(image: torch.Tensor, patch_size: int) -> torch.Tensor:
-    """Pad image so that H and W are multiples of patch_size."""
-    _, h, w = image.shape  # (C, H, W)
-    pad_h = (patch_size - h % patch_size) % patch_size
-    pad_w = (patch_size - w % patch_size) % patch_size
-    if pad_h or pad_w:
-        image = F.pad(image, (0, pad_w, 0, pad_h), mode='constant', value=0)
-    return image
+
+def compute_patch_grid_size(H: int, W: int) -> tuple[int, int]:
+    """Compute valid (non-padded) patch grid size after center-pad-to-square + resize to 518.
+
+    Returns (h_p, w_p) — the number of patches along each axis that
+    correspond to original image content in the 37x37 token grid.
+    """
+    max_dim = max(H, W)
+    h_p = max(round(H / max_dim * N_PATCHES), 1)
+    w_p = max(round(W / max_dim * N_PATCHES), 1)
+    return h_p, w_p
 
 
 class VGGTExtractor(AbstractFeatureExtractor):
     """Feature extractor based on VGGT aggregator.
 
-    Preprocesses images so that the output patch grid matches an effective
-    ``PATCH_SIZE=16`` (same as DINOv3), despite VGGT's native 14-pixel patches.
-
-    Pipeline: reflect-pad to 16-multiples -> bicubic scale by 14/16
-    -> center-pad to square (black, patch-aligned) -> aggregator
-    -> crop valid tokens -> (D, h_p, w_p) feature map.
+    Follows the official VGGT preprocessing:
+    center-pad to square (black) -> bilinear resize to 518x518 -> aggregator
+    -> crop valid patch tokens -> (D, h_p, w_p) feature map.
 
     VGGT requires multiple images (multi-view aggregation).  Use
     ``extract_all`` instead of ``__call__``.
     """
 
-    def __init__(self, model, patch_size: int, vggt_patch_size: int):
+    def __init__(self, model):
         self.model = model
-        self.patch_size = patch_size
-        self.vggt_patch_size = vggt_patch_size
         self.model.eval()
 
     def __call__(self, image: torch.Tensor) -> torch.Tensor:
@@ -49,47 +50,30 @@ class VGGTExtractor(AbstractFeatureExtractor):
             images: Iterable of (C, H, W) tensors in [0, 1] range.
 
         Yields:
-            Per-image feature map of shape (D, h_p, w_p) where
-            h_p = ceil(H / patch_size), w_p = ceil(W / patch_size).
+            Per-image feature map of shape (D, h_p, w_p), with padded
+            tokens cropped so only the original image content is kept.
         """
-        P = self.patch_size
-        VP = self.vggt_patch_size
-
-        # 1. Reflect-pad each image to 16-multiples and record patch grid sizes
-        padded_images = []
-        patch_sizes = []
-        for image in images:
-            x = padding(image, P)
-            _, h_pad, w_pad = x.shape
-            padded_images.append(x)
-            patch_sizes.append((h_pad // P, w_pad // P))
-
-        # 2. Global square size determined by all images
-        sq_patches = max(max(h_p, w_p) for h_p, w_p in patch_sizes)
-        sq_size = sq_patches * VP
-
-        # 3. Bicubic resize and center-pad each image to the global square
+        # 1. Center-pad to square and resize to 518x518
         frames = []
-        offsets = []
-        for x, (h_p, w_p) in zip(padded_images, patch_sizes):
-            x = F.interpolate(
-                x.unsqueeze(0),
-                size=(h_p * VP, w_p * VP),
-                mode="bicubic",
+        orig_sizes = []
+        for img in images:
+            _, H, W = img.shape
+            max_dim = max(H, W)
+            pad_top = (max_dim - H) // 2
+            pad_left = (max_dim - W) // 2
+            pad_bottom = max_dim - H - pad_top
+            pad_right = max_dim - W - pad_left
+            square = F.pad(img, (pad_left, pad_right, pad_top, pad_bottom), mode='constant', value=0)
+            resized = F.interpolate(
+                square.unsqueeze(0),
+                size=(RESOLUTION, RESOLUTION),
+                mode='bilinear',
                 align_corners=False,
             ).squeeze(0)
+            frames.append(resized)
+            orig_sizes.append((H, W))
 
-            top_patches = (sq_patches - h_p) // 2
-            left_patches = (sq_patches - w_p) // 2
-            top = top_patches * VP
-            left = left_patches * VP
-
-            frame = x.new_zeros(3, sq_size, sq_size)
-            frame[:, top: top + h_p * VP, left: left + w_p * VP] = x
-            frames.append(frame)
-            offsets.append((top_patches, left_patches))
-
-        # 4. Stack and feed to aggregator [B=1, S=N, 3, sq_size, sq_size]
+        # 2. Stack and feed to aggregator  [B=1, S=N, 3, 518, 518]
         batch = torch.stack(frames).unsqueeze(0)
         device = batch.device
         dtype = (
@@ -101,14 +85,17 @@ class VGGTExtractor(AbstractFeatureExtractor):
         with torch.cuda.amp.autocast(dtype=dtype):
             aggregated_tokens_list, ps_idx = self.model.aggregator(batch)
 
-        # 5. Extract per-image features from last-layer patch tokens
-        #    aggregator output shape: (B, S, P, 2*C) where P includes special tokens
-        tokens = aggregated_tokens_list[-1]          # (1, S, P, 2*C)
-        patch_tokens = tokens[0, :, ps_idx:, :]      # (S, sq_patches^2, D)
+        # 3. Extract per-image features from last-layer patch tokens
+        tokens = aggregated_tokens_list[-1]          # (1, S, P_total, D)
+        patch_tokens = tokens[0, :, ps_idx:, :]      # (S, 37*37, D)
         D = patch_tokens.shape[-1]
 
-        for i, ((h_p, w_p), (top_p, left_p)) in enumerate(zip(patch_sizes, offsets)):
-            grid = patch_tokens[i].view(sq_patches, sq_patches, D)
+        # 4. Crop valid tokens for each image
+        for i, (H, W) in enumerate(orig_sizes):
+            grid = patch_tokens[i].view(N_PATCHES, N_PATCHES, D)
+            h_p, w_p = compute_patch_grid_size(H, W)
+            top_p = (N_PATCHES - h_p) // 2
+            left_p = (N_PATCHES - w_p) // 2
             feat = grid[top_p: top_p + h_p, left_p: left_p + w_p, :]
             yield feat.permute(2, 0, 1).contiguous()  # (D, h_p, w_p)
 

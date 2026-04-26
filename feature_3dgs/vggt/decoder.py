@@ -3,48 +3,42 @@ import torch.nn.functional as F
 from gaussian_splatting import Camera
 from feature_3dgs.decoder import LinearDecoder
 
-from .extractor import padding
+from .extractor import compute_patch_grid_size
 
 
 class VGGTLinearAvgDecoder(LinearDecoder):
     """Decoder that aligns Gaussian features with VGGTExtractor output.
 
-    Extends ``LinearDecoder`` with patch-level average pooling
-    (``decode_feature_map``) and bilinear upsampling (``encode_feature_map``)
-    to match the spatial resolution of the VGGT patch-based extractor.
+    ``decode_feature_map``: adaptive average-pool to match the extractor's
+    patch grid, then linear projection (channel up).
+
+    ``encode_feature_map``: linear inverse projection (channel down), then
+    bilinear upsample to full image resolution.
     """
 
-    def __init__(self, *args, patch_size: int, **configs):
-        """
-        Args:
-            in_channels:  Per-point semantic embedding dimension rendered by
-                          the Gaussian rasteriser.
-            out_channels: Feature dimension D produced by VGGTExtractor.
-            patch_size:   Effective patch size (16) used by the paired VGGTExtractor.
-        """
-        super().__init__(*args, **configs)
-        self.patch_size = patch_size
-
     def decode_feature_map(self, feature_map: torch.Tensor) -> torch.Tensor:
-        """Fused linear + avg-pool via a single Conv2d.
+        """Fused avg-pool + linear via a single ``F.conv2d``.
 
-        Equivalent to (but avoids the large (C_feat, H, W) intermediate):
-
-            x = padding(feature_map, P)
-            C, H, W = x.shape
-            x = x.permute(1, 2, 0).reshape(-1, C)        # (H*W, C_enc)
-            x = self.linear(x)                             # (H*W, C_feat)
-            x = x.reshape(H, W, -1).permute(2, 0, 1)      # (C_feat, H, W)
-            x = F.avg_pool2d(x, kernel_size=P, stride=P)   # (C_feat, H_p, W_p)
-
-        Because avg_pool (mean over P**2 elements) and the linear layer are
-        both linear operations, they fuse into one Conv2d with kernel
-        ``weight[:, :, None, None] / P**2`` and stride P.
+        Pads (H, W) to exact multiples of (h_p, w_p), then applies one
+        strided Conv2d whose kernel averages each patch and projects
+        channels simultaneously:  ``weight / (kh*kw)`` with stride ``(kh, kw)``.
         """
-        P = self.patch_size
-        x = padding(feature_map, P)                        # (C_enc, H', W')
-        weight = self.linear.weight[:, :, None, None].expand(-1, -1, P, P) / (P * P)
-        return F.conv2d(x.unsqueeze(0), weight, self.linear.bias, stride=P).squeeze(0)
+        _, H, W = feature_map.shape
+        # 1. Pad feature_map to exact multiples of (h_p, w_p)
+        h_p, w_p = compute_patch_grid_size(H, W)
+        pad_h = (h_p - H % h_p) % h_p
+        pad_w = (w_p - W % w_p) % w_p
+        if pad_h or pad_w:
+            pad_top = pad_h // 2
+            pad_bottom = pad_h - pad_top
+            pad_left = pad_w // 2
+            pad_right = pad_w - pad_left
+            feature_map = F.pad(feature_map, (pad_left, pad_right, pad_top, pad_bottom), mode='reflect')
+        # 2. Apply Conv2d (Avg-pool + Linear)
+        kh = feature_map.shape[1] // h_p
+        kw = feature_map.shape[2] // w_p
+        weight = self.linear.weight[:, :, None, None].expand(-1, -1, kh, kw) / (kh * kw)
+        return F.conv2d(feature_map.unsqueeze(0), weight, self.linear.bias, stride=(kh, kw)).squeeze(0)
 
     def encode_feature_map(self, feature_map: torch.Tensor, camera: Camera) -> torch.Tensor:
         """Inverse of decode_feature_map: (C_feat, H_p, W_p) -> (C_enc, H, W).
