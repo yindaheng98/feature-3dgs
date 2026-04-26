@@ -10,23 +10,25 @@ PATCH_SIZE = 14
 FEAT_SIZE = RESOLUTION // PATCH_SIZE  # 37
 
 
-def compute_patch_grid_size(H: int, W: int, feat_size: int) -> tuple[int, int]:
-    """Compute valid (non-padded) grid size after center-pad-to-square.
+def compute_square_valid_region(H: int, W: int, square_size: int) -> tuple[int, int, int, int]:
+    """Compute the valid region inside a square feature map.
 
     Works for any square feature map produced from a center-padded image:
     patch token grids (37x37), DPT feature maps (259x259), etc.
 
     Args:
         H, W: original image spatial dimensions (before padding).
-        feat_size: spatial size of the square feature map.
+        square_size: side length of the square feature map.
 
     Returns:
-        (h_f, w_f) — elements along each axis corresponding to original content.
+        (top, left, h, w) of the valid region corresponding to original content.
     """
     max_dim = max(H, W)
-    h_f = max(round(H / max_dim * feat_size), 1)
-    w_f = max(round(W / max_dim * feat_size), 1)
-    return h_f, w_f
+    h = max(round(H / max_dim * square_size), 1)
+    w = max(round(W / max_dim * square_size), 1)
+    top = (square_size - h) // 2
+    left = (square_size - w) // 2
+    return top, left, h, w
 
 
 def padding_square(img: torch.Tensor, target_resolution: int = 1024) -> torch.Tensor:
@@ -120,9 +122,7 @@ class VGGTExtractor(AbstractFeatureExtractor):
         # 4. Crop valid tokens for each image
         for i, (H, W) in enumerate(orig_sizes):
             grid = patch_tokens[i].view(FEAT_SIZE, FEAT_SIZE, D)
-            h_p, w_p = compute_patch_grid_size(H, W, feat_size=FEAT_SIZE)
-            top_p = (FEAT_SIZE - h_p) // 2
-            left_p = (FEAT_SIZE - w_p) // 2
+            top_p, left_p, h_p, w_p = compute_square_valid_region(H, W, square_size=FEAT_SIZE)
             feat = grid[top_p: top_p + h_p, left_p: left_p + w_p, :]
             yield feat.permute(2, 0, 1).contiguous()  # (D, h_p, w_p)
 

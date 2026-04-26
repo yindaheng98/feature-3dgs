@@ -3,7 +3,7 @@ from collections.abc import Iterable, Iterator
 import torch
 import torch.nn.functional as F
 
-from .extractor import VGGTExtractor, RESOLUTION, padding_square, compute_patch_grid_size
+from .extractor import VGGTExtractor, RESOLUTION, padding_square, compute_square_valid_region
 
 FEAT_SIZE = RESOLUTION // 2  # 259, DPT head with down_ratio=2
 
@@ -67,8 +67,6 @@ class VGGTrackExtractor(VGGTExtractor):
         # 4. Crop valid region for each image
         for i, (H, W) in enumerate(orig_sizes):
             assert feature_maps.shape[-2:] == (FEAT_SIZE, FEAT_SIZE)
-            h_f, w_f = compute_patch_grid_size(H, W, feat_size=FEAT_SIZE)
-            top_f = (FEAT_SIZE - h_f) // 2
-            left_f = (FEAT_SIZE - w_f) // 2
+            top_f, left_f, h_f, w_f = compute_square_valid_region(H, W, square_size=FEAT_SIZE)
             feat = feature_maps[i, :, top_f: top_f + h_f, left_f: left_f + w_f]
             yield feat.contiguous()                 # (C, h_f, w_f)
