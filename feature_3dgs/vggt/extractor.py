@@ -7,19 +7,25 @@ from feature_3dgs.extractor import AbstractFeatureExtractor
 
 RESOLUTION = 518
 PATCH_SIZE = 14
-N_PATCHES = RESOLUTION // PATCH_SIZE  # 37
 
 
-def compute_patch_grid_size(H: int, W: int) -> tuple[int, int]:
-    """Compute valid (non-padded) patch grid size after center-pad-to-square + resize to 518.
+def compute_patch_grid_size(H: int, W: int, feat_size: int) -> tuple[int, int]:
+    """Compute valid (non-padded) grid size after center-pad-to-square.
 
-    Returns (h_p, w_p) — the number of patches along each axis that
-    correspond to original image content in the 37x37 token grid.
+    Works for any square feature map produced from a center-padded image:
+    patch token grids (37x37), DPT feature maps (259x259), etc.
+
+    Args:
+        H, W: original image spatial dimensions (before padding).
+        feat_size: spatial size of the square feature map (default ``N_PATCHES``).
+
+    Returns:
+        (h_f, w_f) — elements along each axis corresponding to original content.
     """
     max_dim = max(H, W)
-    h_p = max(round(H / max_dim * N_PATCHES), 1)
-    w_p = max(round(W / max_dim * N_PATCHES), 1)
-    return h_p, w_p
+    h_f = max(round(H / max_dim * feat_size), 1)
+    w_f = max(round(W / max_dim * feat_size), 1)
+    return h_f, w_f
 
 
 def padding_square(img: torch.Tensor, target_resolution: int = 1024) -> torch.Tensor:
@@ -111,9 +117,10 @@ class VGGTExtractor(AbstractFeatureExtractor):
         D = patch_tokens.shape[-1]
 
         # 4. Crop valid tokens for each image
+        N_PATCHES = RESOLUTION // PATCH_SIZE  # 37
         for i, (H, W) in enumerate(orig_sizes):
             grid = patch_tokens[i].view(N_PATCHES, N_PATCHES, D)
-            h_p, w_p = compute_patch_grid_size(H, W)
+            h_p, w_p = compute_patch_grid_size(H, W, feat_size=N_PATCHES)
             top_p = (N_PATCHES - h_p) // 2
             left_p = (N_PATCHES - w_p) // 2
             feat = grid[top_p: top_p + h_p, left_p: left_p + w_p, :]
