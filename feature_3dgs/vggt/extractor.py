@@ -7,6 +7,7 @@ from feature_3dgs.extractor import AbstractFeatureExtractor
 
 RESOLUTION = 518
 PATCH_SIZE = 14
+FEAT_SIZE = RESOLUTION // PATCH_SIZE  # 37
 
 
 def compute_patch_grid_size(H: int, W: int, feat_size: int) -> tuple[int, int]:
@@ -17,7 +18,7 @@ def compute_patch_grid_size(H: int, W: int, feat_size: int) -> tuple[int, int]:
 
     Args:
         H, W: original image spatial dimensions (before padding).
-        feat_size: spatial size of the square feature map (default ``N_PATCHES``).
+        feat_size: spatial size of the square feature map.
 
     Returns:
         (h_f, w_f) — elements along each axis corresponding to original content.
@@ -117,12 +118,11 @@ class VGGTExtractor(AbstractFeatureExtractor):
         D = patch_tokens.shape[-1]
 
         # 4. Crop valid tokens for each image
-        N_PATCHES = RESOLUTION // PATCH_SIZE  # 37
         for i, (H, W) in enumerate(orig_sizes):
-            grid = patch_tokens[i].view(N_PATCHES, N_PATCHES, D)
-            h_p, w_p = compute_patch_grid_size(H, W, feat_size=N_PATCHES)
-            top_p = (N_PATCHES - h_p) // 2
-            left_p = (N_PATCHES - w_p) // 2
+            grid = patch_tokens[i].view(FEAT_SIZE, FEAT_SIZE, D)
+            h_p, w_p = compute_patch_grid_size(H, W, feat_size=FEAT_SIZE)
+            top_p = (FEAT_SIZE - h_p) // 2
+            left_p = (FEAT_SIZE - w_p) // 2
             feat = grid[top_p: top_p + h_p, left_p: left_p + w_p, :]
             yield feat.permute(2, 0, 1).contiguous()  # (D, h_p, w_p)
 
