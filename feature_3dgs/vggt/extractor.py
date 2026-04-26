@@ -22,20 +22,50 @@ def compute_patch_grid_size(H: int, W: int) -> tuple[int, int]:
     return h_p, w_p
 
 
+def padding_square(img: torch.Tensor, target_resolution: int = 1024) -> torch.Tensor:
+    """Center-pad to square + bicubic resize, matching the official VGGT
+    ``load_and_preprocess_images_square``.
+
+    Args:
+        img: (C, H, W) tensor in [0, 1].
+        target_resolution: output square size (default 1024).
+
+    Returns:
+        (C, target_resolution, target_resolution) tensor.
+    """
+    _, H, W = img.shape
+    max_dim = max(H, W)
+    pad_top = (max_dim - H) // 2
+    pad_left = (max_dim - W) // 2
+    pad_bottom = max_dim - H - pad_top
+    pad_right = max_dim - W - pad_left
+    square = F.pad(img, (pad_left, pad_right, pad_top, pad_bottom), mode='constant', value=0)
+
+    return F.interpolate(
+        square.unsqueeze(0),
+        size=(target_resolution, target_resolution),
+        mode='bicubic',
+        align_corners=False,
+        antialias=True,
+    ).clamp_(0, 1).squeeze(0)
+
+
 class VGGTExtractor(AbstractFeatureExtractor):
     """Feature extractor based on VGGT aggregator.
 
-    Follows the official VGGT preprocessing:
-    center-pad to square (black) -> bilinear resize to 518x518 -> aggregator
-    -> crop valid patch tokens -> (D, h_p, w_p) feature map.
+    Preprocessing matches the official VGGT ``load_and_preprocess_images_square``
+    + ``run_VGGT`` chain: center-pad to square (black) -> bicubic resize to
+    *img_load_resolution* -> bilinear resize to 518x518 -> aggregator -> crop
+    valid patch tokens -> (D, h_p, w_p) feature map.
 
     VGGT requires multiple images (multi-view aggregation).  Use
     ``extract_all`` instead of ``__call__``.
     """
 
-    def __init__(self, model):
+    def __init__(self, model, img_load_resolution: int = 1024):
         self.model = model
         self.model.eval()
+        self.img_load_resolution = img_load_resolution
 
     def __call__(self, image: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError(
@@ -53,28 +83,18 @@ class VGGTExtractor(AbstractFeatureExtractor):
             Per-image feature map of shape (D, h_p, w_p), with padded
             tokens cropped so only the original image content is kept.
         """
-        # 1. Center-pad to square and resize to 518x518
+        # 1. Preprocess each image: center-pad + bicubic to img_load_resolution
         frames = []
         orig_sizes = []
         for img in images:
-            _, H, W = img.shape
-            max_dim = max(H, W)
-            pad_top = (max_dim - H) // 2
-            pad_left = (max_dim - W) // 2
-            pad_bottom = max_dim - H - pad_top
-            pad_right = max_dim - W - pad_left
-            square = F.pad(img, (pad_left, pad_right, pad_top, pad_bottom), mode='constant', value=0)
-            resized = F.interpolate(
-                square.unsqueeze(0),
-                size=(RESOLUTION, RESOLUTION),
-                mode='bilinear',
-                align_corners=False,
-            ).squeeze(0)
-            frames.append(resized)
-            orig_sizes.append((H, W))
+            frames.append(padding_square(img, self.img_load_resolution))
+            orig_sizes.append(img.shape[1:])
 
-        # 2. Stack and feed to aggregator  [B=1, S=N, 3, 518, 518]
-        batch = torch.stack(frames).unsqueeze(0)
+        # 2. Bilinear down to 518 (matches run_VGGT), then feed to aggregator
+        batch = torch.stack(frames)
+        if batch.shape[-2:] != (RESOLUTION, RESOLUTION):
+            batch = F.interpolate(batch, size=(RESOLUTION, RESOLUTION), mode='bilinear', align_corners=False)
+        batch = batch.unsqueeze(0)
         device = batch.device
         dtype = (
             torch.bfloat16

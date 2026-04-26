@@ -16,18 +16,18 @@ FEATURE_DIM = 2048  # 2 * embed_dim (1024)
 MODEL_VGGT = "vggt"
 
 
-def VGGTFeatureExtractor(checkpoint: str = "checkpoints/vggt_1B_commercial.pt") -> VGGTExtractor:
+def VGGTFeatureExtractor(checkpoint: str = "checkpoints/vggt_1B_commercial.pt", img_load_resolution: int = 1024) -> VGGTExtractor:
     model = VGGT()
     if os.path.isfile(checkpoint):
         model.load_state_dict(torch.load(checkpoint, weights_only=True))
     else:
         model = VGGT.from_pretrained("facebook/VGGT-1B")
-    return VGGTExtractor(model=model)
+    return VGGTExtractor(model=model, img_load_resolution=img_load_resolution)
 
 
 def build_factory():
-    def factory(embed_dim: int, checkpoint="checkpoints/vggt_1B_commercial.pt", **configs) -> Tuple[AbstractFeatureExtractor, AbstractTrainableDecoder]:
-        extractor = VGGTFeatureExtractor(checkpoint)
+    def factory(embed_dim: int, checkpoint="checkpoints/vggt_1B_commercial.pt", img_load_resolution: int = 1024, **configs) -> Tuple[AbstractFeatureExtractor, AbstractTrainableDecoder]:
+        extractor = VGGTFeatureExtractor(checkpoint, img_load_resolution=img_load_resolution)
         decoder = VGGTLinearAvgDecoder(
             in_channels=embed_dim,
             out_channels=FEATURE_DIM,
