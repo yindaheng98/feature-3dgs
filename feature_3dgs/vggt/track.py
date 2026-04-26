@@ -5,6 +5,8 @@ import torch.nn.functional as F
 
 from .extractor import VGGTExtractor, RESOLUTION, padding_square, compute_patch_grid_size
 
+FEAT_SIZE = RESOLUTION // 2  # 259, DPT head with down_ratio=2
+
 
 class VGGTrackExtractor(VGGTExtractor):
     """Feature extractor based on VGGT aggregator + TrackHead DPT feature extractor.
@@ -61,12 +63,12 @@ class VGGTrackExtractor(VGGTExtractor):
             feature_maps = self.feature_extractor(aggregated_tokens_list, batch, ps_idx)
         # feature_maps: (1, S, C, H_feat, W_feat)  e.g. (1, S, 128, 259, 259)
         feature_maps = feature_maps[0]              # (S, C, H_feat, W_feat)
-        H_feat, W_feat = feature_maps.shape[-2:]
 
         # 4. Crop valid region for each image
         for i, (H, W) in enumerate(orig_sizes):
-            h_f, w_f = compute_patch_grid_size(H, W, feat_size=H_feat)
-            top_f = (H_feat - h_f) // 2
-            left_f = (W_feat - w_f) // 2
+            assert feature_maps.shape[-2:] == (FEAT_SIZE, FEAT_SIZE)
+            h_f, w_f = compute_patch_grid_size(H, W, feat_size=FEAT_SIZE)
+            top_f = (FEAT_SIZE - h_f) // 2
+            left_f = (FEAT_SIZE - w_f) // 2
             feat = feature_maps[i, :, top_f: top_f + h_f, left_f: left_f + w_f]
             yield feat.contiguous()                 # (C, h_f, w_f)
