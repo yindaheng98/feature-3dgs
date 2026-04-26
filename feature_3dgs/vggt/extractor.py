@@ -31,6 +31,16 @@ def compute_square_valid_region(H: int, W: int, square_size: int) -> tuple[int, 
     return top, left, h, w
 
 
+def compute_square_padding(H: int, W: int) -> tuple[int, int, int, int]:
+    """Compute center padding `(left, right, top, bottom)` to make an image square."""
+    max_dim = max(H, W)
+    pad_top = (max_dim - H) // 2
+    pad_left = (max_dim - W) // 2
+    pad_bottom = max_dim - H - pad_top
+    pad_right = max_dim - W - pad_left
+    return pad_left, pad_right, pad_top, pad_bottom
+
+
 def padding_square(img: torch.Tensor, target_resolution: int = 1024) -> torch.Tensor:
     """Center-pad to square + bicubic resize, matching the official VGGT
     ``load_and_preprocess_images_square``.
@@ -43,11 +53,7 @@ def padding_square(img: torch.Tensor, target_resolution: int = 1024) -> torch.Te
         (C, target_resolution, target_resolution) tensor.
     """
     _, H, W = img.shape
-    max_dim = max(H, W)
-    pad_top = (max_dim - H) // 2
-    pad_left = (max_dim - W) // 2
-    pad_bottom = max_dim - H - pad_top
-    pad_right = max_dim - W - pad_left
+    pad_left, pad_right, pad_top, pad_bottom = compute_square_padding(H, W)
     square = F.pad(img, (pad_left, pad_right, pad_top, pad_bottom), mode='constant', value=0)
 
     return F.interpolate(
