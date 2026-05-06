@@ -69,10 +69,11 @@ class FeatureCameraDataset(CameraDataset):
         return pca_inverse_transform_params(self, n_components, whiten=whiten, cache_device=self.cache_device)
 
 
-class TrainableFeatureCameraDataset(FeatureCameraDataset):
+class TrainableFeatureCameraDataset(FeatureCameraDataset, TrainableCameraDataset):
 
     def __init__(self, cameras: TrainableCameraDataset, extractor: AbstractFeatureExtractor, cache_device=None):
         super().__init__(cameras=cameras, extractor=extractor, cache_device=cache_device)
+        # Keep trainable camera members on this wrapper for direct trainer access.
         self.quaternions = cameras.quaternions
         self.Ts = cameras.Ts
         self.exposures = cameras.exposures
