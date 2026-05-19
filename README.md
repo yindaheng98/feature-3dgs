@@ -1,5 +1,11 @@
 # Feature 3DGS (Packaged Python Version)
 
+[![PyPI version](https://img.shields.io/pypi/v/feature-3dgs.svg?logo=pypi)](https://pypi.org/project/feature-3dgs/)
+[![Downloads](https://api.pepy.tech/personalized-badge/feature-3dgs?period=month&left_color=grey&right_color=brightgreen&left_text=monthly%20downloads)](https://pepy.tech/project/feature-3dgs)
+[![Total downloads](https://api.pepy.tech/personalized-badge/feature-3dgs?period=total&left_color=grey&right_color=brightgreen&left_text=total%20downloads)](https://pepy.tech/project/feature-3dgs)
+[![CI](https://github.com/yindaheng98/feature-3dgs/actions/workflows/build-release-linux.yml/badge.svg)](https://github.com/yindaheng98/feature-3dgs/actions/workflows/ci.yml)
+[![CI](https://github.com/yindaheng98/feature-3dgs/actions/workflows/build-release-win.yml/badge.svg)](https://github.com/yindaheng98/feature-3dgs/actions/workflows/ci.yml)
+
 This repo is the **refactored Python training and inference code for [Feature 3DGS](https://github.com/ShijieZhou-UCLA/feature-3dgs)**.
 Built on top of [`gaussian-splatting`](https://github.com/yindaheng98/gaussian-splatting), we **reorganised the original code as a standard Python package** with a modular Extractor-Decoder architecture, making it easy to swap foundation models without changing the core pipeline.
 
