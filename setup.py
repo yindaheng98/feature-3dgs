@@ -9,7 +9,7 @@
 # For inquiries contact  george.drettakis@inria.fr
 #
 
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, find_namespace_packages
 from torch.utils.cpp_extension import CUDAExtension, BuildExtension
 import os
 
@@ -27,6 +27,8 @@ featurefusion_root = "submodules/featurefusion"
 featurepickup_root = "submodules/featurepickup"
 
 packages = ['feature_3dgs'] + ["feature_3dgs." + package for package in find_packages(where="feature_3dgs")]
+packages_vggt = ['vggt'] + ["vggt." + package for package in find_namespace_packages(where="submodules/vggt/vggt")]
+packages_vggttt = ['vggttt'] + ["vggttt." + package for package in find_namespace_packages(where="submodules/vgg-ttt/vggttt")]
 rasterizor_packages = {
     'feature_3dgs.diff_gaussian_rasterization': 'submodules/diff-gaussian-rasterization/diff_gaussian_rasterization',
     'feature_3dgs.utils.featurefusion.diff_gaussian_rasterization': 'submodules/featurefusion/diff_gaussian_rasterization',
@@ -43,7 +45,7 @@ pypi_build = os.environ.get("PYPI_BUILD", "").lower() in {"1", "true", "yes", "o
 
 setup(
     name="feature_3dgs",
-    version='1.10.2',
+    version='1.10.3',
     author='yindaheng98',
     author_email='yindaheng98@gmail.com',
     url='https://github.com/yindaheng98/feature-3dgs',
@@ -53,9 +55,11 @@ setup(
     classifiers=[
         "Programming Language :: Python :: 3",
     ],
-    packages=packages + list(rasterizor_packages.keys()),
+    packages=packages + packages_vggt + packages_vggttt + list(rasterizor_packages.keys()),
     package_dir={
         'feature_3dgs': 'feature_3dgs',
+        'vggt': 'submodules/vggt/vggt',
+        'vggttt': 'submodules/vgg-ttt/vggttt',
         **rasterizor_packages
     },
     ext_modules=[
@@ -81,6 +85,11 @@ setup(
     install_requires=[
         'gaussian-splatting >= 2.3.8',
         'scikit-learn',
+        # VGGT runtime dependencies
+        'numpy<2',
+        'huggingface_hub',
+        'einops',
+        'safetensors',
     ]+([
         # dinov3
         'dinov3 @ git+https://github.com/facebookresearch/dinov3.git',
@@ -88,7 +97,6 @@ setup(
         'Pillow',
         'hydra-core',
         'omegaconf',
-        'vggt @ git+https://github.com/facebookresearch/vggt.git',
         'lightglue @ git+https://github.com/jytime/LightGlue.git#egg=lightglue',
     ] if not pypi_build else []),
 )

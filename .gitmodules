@@ -10,3 +10,9 @@
 	path = submodules/featurepickup
 	url = https://github.com/yindaheng98/diff-gaussian-rasterization-feature.git
 	branch = featurepickup
+[submodule "submodules/vggt"]
+	path = submodules/vggt
+	url = https://github.com/facebookresearch/vggt
+[submodule "submodules/vgg-ttt"]
+	path = submodules/vgg-ttt
+	url = https://github.com/nv-dvl/vgg-ttt
