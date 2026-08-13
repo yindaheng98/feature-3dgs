@@ -16,6 +16,7 @@ Each Gaussian point carries a learnable **encoded semantics** embedding alongsid
 * [x] Organised as a standard Python package with `pip install` support
 * [x] Modular Extractor-Decoder architecture for plugging in arbitrary foundation models
 * [x] Built-in DINOv3 support (ViT and ConvNeXt backbones)
+* [x] Built-in VGGT and VGG-T³ multi-view feature extractors
 * [x] Auto-registration pattern — add new models with zero changes to core code
 * [x] PCA-based feature visualisation for both ground-truth and rendered feature maps
 * [x] All training modes from upstream: base, densify, camera, camera-densify
@@ -33,6 +34,14 @@ pip install --upgrade git+https://github.com/facebookresearch/dinov3.git@main
 pip install --upgrade git+https://github.com/facebookresearch/vggt.git@main
 pip install --upgrade Pillow hydra-core omegaconf # deps for vggt
 pip install --upgrade git+https://github.com/jytime/LightGlue.git#egg=lightglue # deps for vggt
+```
+
+VGG-T³ support is bundled as a git submodule and currently requires a source
+checkout. Clone with `--recursive` as shown below, then install its runtime
+dependencies:
+
+```shell
+pip install -r submodules/vgg-ttt/requirements.txt
 ```
 
 (Optional) If you have trouble with [`gaussian-splatting`](https://github.com/yindaheng98/gaussian-splatting), try to install it from source:
@@ -88,6 +97,14 @@ checkpoints/
 wget -P checkpoints/ https://huggingface.co/facebook/VGGT-1B-Commercial/resolve/main/vggt_1B_commercial.pt --header="Authorization: Bearer $HF_TOKEN"
 ```
 
+#### VGG-T³
+
+The `vggttt` extractor downloads
+[`nvidia/vgg-ttt`](https://huggingface.co/nvidia/vgg-ttt) through
+`from_pretrained` on first use. The VGG-T³ code and model are released under
+the NVIDIA OneWay Noncommercial License; consult the bundled submodule license
+before use.
+
 ## Command-Line Usage
 
 ### Visualise Extractor Output
@@ -99,6 +116,23 @@ python -m feature_3dgs.show \
     --name dinov3_vitl16 \
     -s data/truck -d output/truck-dinov3_vitl16 \
     -o checkpoint_dir="'checkpoints'"
+```
+
+VGGT-family extractors process all views jointly and therefore require dataset
+cache preloading (enabled by default). The VGG-T³ extractors are CUDA-only.
+Available registered names are:
+
+* `vggt`: final aggregator patch tokens, 2048 channels
+* `vggtrack`: VGGT TrackHead DPT features, 128 channels
+* `vggttt`: VGG-T³ final aggregator patch tokens, 2048 channels
+* `vggttttrack`: VGG-T³ aggregation with the VGGT TrackHead, 128 channels
+
+For example:
+
+```shell
+python -m feature_3dgs.show \
+    --name vggttt \
+    -s data/truck -d output/truck-vggttt
 ```
 
 ### Train

@@ -45,7 +45,7 @@ pypi_build = os.environ.get("PYPI_BUILD", "").lower() in {"1", "true", "yes", "o
 
 setup(
     name="feature_3dgs",
-    version='1.10.3',
+    version='1.11.0',
     author='yindaheng98',
     author_email='yindaheng98@gmail.com',
     url='https://github.com/yindaheng98/feature-3dgs',
@@ -86,7 +86,7 @@ setup(
         'gaussian-splatting >= 2.3.8',
         'scikit-learn',
         # VGGT runtime dependencies
-        'numpy<2',
+        'numpy',
         'huggingface_hub',
         'einops',
         'safetensors',
