@@ -29,11 +29,14 @@ class VGGTTTExtractor(VGGTExtractor):
             else torch.float16
         )
         with torch.cuda.amp.autocast(dtype=dtype):
-            aggregated_tokens_list, ps_idx, _ = self.model.aggregator(
+            compact_tokens, ps_idx, _ = self.model.aggregator(
                 batch,
                 attn_kwargs={"info": {"ttt_op_order": [
                     TTTOperator(start=0, end=None, compute_grad=True, update=True, apply=False),
                     TTTOperator(start=0, end=None, compute_grad=False, update=False, apply=True),
                 ]}},
             )
+        aggregated_tokens_list = [None] * self.model.aggregator.depth
+        for layer_idx, tokens in zip(self.model.intermediate_layer_idx, compact_tokens, strict=True):
+            aggregated_tokens_list[layer_idx] = tokens
         return aggregated_tokens_list, ps_idx
