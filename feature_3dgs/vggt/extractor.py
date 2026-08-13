@@ -88,6 +88,17 @@ class VGGTExtractor(AbstractFeatureExtractor):
             "VGGT requires multiple images. Use extract_all() instead."
         )
 
+    def run_aggregator(self, batch: torch.Tensor) -> tuple[list[torch.Tensor], int]:
+        device = batch.device
+        dtype = (
+            torch.bfloat16
+            if device.type == "cuda"
+            and torch.cuda.get_device_capability(device)[0] >= 8
+            else torch.float16
+        )
+        with torch.cuda.amp.autocast(dtype=dtype):
+            return self.model.aggregator(batch)
+
     @torch.no_grad()
     def extract_all(self, images: Iterable[torch.Tensor]) -> Iterator[torch.Tensor]:
         """Extract VGGT features from a sequence of images.
@@ -111,15 +122,7 @@ class VGGTExtractor(AbstractFeatureExtractor):
         if batch.shape[-2:] != (RESOLUTION, RESOLUTION):
             batch = F.interpolate(batch, size=(RESOLUTION, RESOLUTION), mode='bilinear', align_corners=False)
         batch = batch.unsqueeze(0)
-        device = batch.device
-        dtype = (
-            torch.bfloat16
-            if device.type == "cuda"
-            and torch.cuda.get_device_capability(device)[0] >= 8
-            else torch.float16
-        )
-        with torch.cuda.amp.autocast(dtype=dtype):
-            aggregated_tokens_list, ps_idx = self.model.aggregator(batch)
+        aggregated_tokens_list, ps_idx = self.run_aggregator(batch)
 
         # 3. Extract per-image features from last-layer patch tokens
         tokens = aggregated_tokens_list[-1]          # (1, S, P_total, D)

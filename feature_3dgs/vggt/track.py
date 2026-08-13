@@ -56,8 +56,7 @@ class VGGTrackExtractor(VGGTExtractor):
             and torch.cuda.get_device_capability(device)[0] >= 8
             else torch.float16
         )
-        with torch.cuda.amp.autocast(dtype=dtype):
-            aggregated_tokens_list, ps_idx = self.model.aggregator(batch)
+        aggregated_tokens_list, ps_idx = self.run_aggregator(batch)
 
         # 3. Extract per-image feature maps via TrackHead's DPT feature extractor
         with torch.cuda.amp.autocast(dtype=dtype):
