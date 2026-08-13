@@ -2,6 +2,8 @@ from collections.abc import Iterable, Iterator
 
 import torch
 import torch.nn.functional as F
+from PIL import Image
+from torchvision.transforms import functional as TF
 
 from feature_3dgs.extractor import AbstractFeatureExtractor
 
@@ -52,17 +54,16 @@ def padding_square(img: torch.Tensor, target_resolution: int = 1024) -> torch.Te
     Returns:
         (C, target_resolution, target_resolution) tensor.
     """
+    device = img.device
     _, H, W = img.shape
-    pad_left, pad_right, pad_top, pad_bottom = compute_square_padding(H, W)
-    square = F.pad(img, (pad_left, pad_right, pad_top, pad_bottom), mode='constant', value=0)
+    pad_left, _, pad_top, _ = compute_square_padding(H, W)
+    max_dim = max(H, W)
 
-    return F.interpolate(
-        square.unsqueeze(0),
-        size=(target_resolution, target_resolution),
-        mode='bicubic',
-        align_corners=False,
-        antialias=True,
-    ).clamp_(0, 1).squeeze(0)
+    image_u8 = img.detach().mul(255).round_().clamp_(0, 255).to(torch.uint8).cpu()
+    square_image = Image.new("RGB", (max_dim, max_dim), (0, 0, 0))
+    square_image.paste(Image.fromarray(image_u8.permute(1, 2, 0).numpy()), (pad_left, pad_top))
+    square_image = square_image.resize((target_resolution, target_resolution), Image.Resampling.BICUBIC)
+    return TF.to_tensor(square_image).to(device=device)
 
 
 class VGGTExtractor(AbstractFeatureExtractor):
