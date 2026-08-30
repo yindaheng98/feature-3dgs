@@ -4,7 +4,6 @@ from gaussian_splatting import Camera
 from gaussian_splatting.dataset import CameraDataset, TrainableCameraDataset
 
 from .abc import AbstractFeatureExtractor
-from feature_3dgs.utils import pca_inverse_transform_params, cosine_pca_inverse_transform_params
 
 
 class FeatureCameraDataset(CameraDataset):
@@ -55,26 +54,6 @@ class FeatureCameraDataset(CameraDataset):
             self.feature_map_cache.append(feature_map)
             torch.cuda.empty_cache()
         del self.extractor
-
-    def pca_inverse_transform_params(self, n_components: int, whiten: bool = False) -> tuple[torch.Tensor, torch.Tensor]:
-        """Return PCA inverse_transform ``(weight, bias)``.
-
-        Usable as ``nn.Linear(n_components, D)`` weights so that
-        ``z @ weight.T + bias`` reconstructs the original features.
-
-        Returns:
-            weight: ``(D, n_components)``
-            bias:   ``(D,)``
-        """
-        return pca_inverse_transform_params(self, n_components, whiten=whiten, cache_device=self.cache_device)
-
-    def cosine_pca_inverse_transform_params(self, n_components: int) -> tuple[torch.Tensor, torch.Tensor]:
-        """Return cosine-PCA inverse_transform ``(weight, zero bias)``.
-
-        Usable as ``nn.Linear(n_components, D)`` weights so that ``z @ weight.T``
-        (no additive mean) spans the top-k subspace of unit-normalised features.
-        """
-        return cosine_pca_inverse_transform_params(self, n_components, cache_device=self.cache_device)
 
 
 class TrainableFeatureCameraDataset(FeatureCameraDataset, TrainableCameraDataset):

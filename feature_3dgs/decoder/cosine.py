@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .linear import LinearDecoder
+from feature_3dgs.utils import cosine_pca_inverse_transform_params
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -64,8 +65,9 @@ class CosineLinearDecoder(LinearDecoder):
         """
         self: CosineLinearDecoder = gaussians.get_decoder
         if decoder is None:
-            weight, bias = dataset.cosine_pca_inverse_transform_params(
-                n_components=self.linear.in_features)
+            weight, bias = cosine_pca_inverse_transform_params(
+                dataset, n_components=self.linear.in_features,
+                cache_device=dataset.cache_device)
             with torch.no_grad():
                 self.linear.weight.copy_(weight)
                 self.linear.bias.copy_(bias)

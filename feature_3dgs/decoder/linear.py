@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .trainable import AbstractTrainableDecoder
+from feature_3dgs.utils import pca_inverse_transform_params
 from feature_3dgs.utils.featurefusion import feature_fusion_alpha_avg, feature_fusion_alpha_max
 from feature_3dgs.utils.featurepickup import feature_pickup_alpha_max
 
@@ -109,8 +110,9 @@ class LinearDecoder(AbstractTrainableDecoder):
         """
         self: LinearDecoder = gaussians.get_decoder
         if decoder is None:
-            weight, bias = dataset.pca_inverse_transform_params(
-                n_components=self.linear.in_features, whiten=False)
+            weight, bias = pca_inverse_transform_params(
+                dataset, n_components=self.linear.in_features, whiten=False,
+                cache_device=dataset.cache_device)
             with torch.no_grad():
                 self.linear.weight.copy_(weight)
                 self.linear.bias.copy_(bias)
