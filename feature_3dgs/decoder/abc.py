@@ -39,6 +39,15 @@ class AbstractSemanticDecoder(nn.Module):
     - ``encode_feature_pixels``: per-pixel encoding that applies
       ``encode_features`` at full spatial resolution, the inverse of
       ``decode_feature_pixels`` (without weight/bias).
+    - ``similarity``: similarity between **decoded** query and features.
+      Compared on the last dim; leading dims are concatenated query-then-
+      features, e.g. ``(A, B, C)`` vs ``(M, N, C)`` → ``(A, B, M, N)``.
+    - ``similarity_encoded``: both arguments encoded.  Default: decode both
+      then ``similarity``.
+    - ``similarity_encoded_query``: encoded query, decoded features.  Default:
+      decode the query then ``similarity``.
+    - ``similarity_encoded_features``: decoded query, encoded features.  Default:
+      decode the features then ``similarity``.
     - ``resize_mask``: resize an image-resolution mask ``(H, W)`` to the
       spatial size of a feature map ``(H', W')``.  Default bilinear
       interpolate; subclasses may override to match
@@ -128,6 +137,29 @@ class AbstractSemanticDecoder(nn.Module):
         x = feature_map.permute(1, 2, 0).reshape(-1, C)  # (H*W, C_feat)
         x = self.encode_features(x)                       # (H*W, C_enc)
         return x.reshape(H, W, -1).permute(2, 0, 1)
+
+    def similarity(self, query: torch.Tensor, features: torch.Tensor) -> torch.Tensor:
+        """Cosine similarity on the last dim of decoded tensors.
+
+        Leading dims are an outer product, query then features:
+        ``(A, B, C)`` vs ``(M, N, C)`` → ``(A, B, M, N)``.
+        """
+        q = F.normalize(query, dim=-1)
+        f = F.normalize(features, dim=-1)
+        sim = q.reshape(-1, q.shape[-1]) @ f.reshape(-1, f.shape[-1]).T
+        return sim.reshape(query.shape[:-1] + features.shape[:-1])
+
+    def similarity_encoded(self, encoded_query: torch.Tensor, encoded_features: torch.Tensor) -> torch.Tensor:
+        """Similarity when both arguments are encoded."""
+        return self.similarity(self.decode_features(encoded_query), self.decode_features(encoded_features))
+
+    def similarity_encoded_query(self, encoded_query: torch.Tensor, features: torch.Tensor) -> torch.Tensor:
+        """Similarity between an encoded query and decoded features."""
+        return self.similarity(self.decode_features(encoded_query), features)
+
+    def similarity_encoded_features(self, query: torch.Tensor, encoded_features: torch.Tensor) -> torch.Tensor:
+        """Similarity between a decoded query and encoded features."""
+        return self.similarity(query, self.decode_features(encoded_features))
 
     def resize_mask(self, mask: torch.Tensor, feature_map: torch.Tensor) -> torch.Tensor:
         """Resize an image-resolution mask to the spatial size of *feature_map*.
