@@ -39,6 +39,10 @@ class AbstractSemanticDecoder(nn.Module):
     - ``encode_feature_pixels``: per-pixel encoding that applies
       ``encode_features`` at full spatial resolution, the inverse of
       ``decode_feature_pixels`` (without weight/bias).
+    - ``resize_mask``: resize an image-resolution mask ``(H, W)`` to the
+      spatial size of a feature map ``(H', W')``.  Default bilinear
+      interpolate; subclasses may override to match
+      ``decode_feature_map`` geometry.
     """
 
     def decode_features(self, features: torch.Tensor) -> torch.Tensor:
@@ -124,6 +128,24 @@ class AbstractSemanticDecoder(nn.Module):
         x = feature_map.permute(1, 2, 0).reshape(-1, C)  # (H*W, C_feat)
         x = self.encode_features(x)                       # (H*W, C_enc)
         return x.reshape(H, W, -1).permute(2, 0, 1)
+
+    def resize_mask(self, mask: torch.Tensor, feature_map: torch.Tensor) -> torch.Tensor:
+        """Resize an image-resolution mask to the spatial size of *feature_map*.
+
+        Default: bilinear interpolate.  Subclasses may override to match
+        ``decode_feature_map`` (padding, pooling, crop).
+
+        Args:
+            mask: (H, W) image-resolution mask.
+            feature_map: (C, H', W') target feature map.
+
+        Returns:
+            (H', W') mask aligned with *feature_map*.
+        """
+        _, Ht, Wt = feature_map.shape
+        if mask.shape[-2:] == (Ht, Wt):
+            return mask
+        return F.interpolate(mask.unsqueeze(0).unsqueeze(0), size=(Ht, Wt), mode='bilinear', align_corners=False).squeeze(0).squeeze(0)
 
     def forward(self, feature_map: torch.Tensor) -> torch.Tensor:
         return self.decode_feature_map(feature_map)
