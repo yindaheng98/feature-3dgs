@@ -3,7 +3,7 @@ from gaussian_splatting.trainer.depth import DepthTrainer, DepthTrainerWrapper
 from feature_3dgs import SemanticGaussianModel, CameraTrainableSemanticGaussianModel
 from feature_3dgs import FeatureCameraDataset, TrainableFeatureCameraDataset
 
-from .trainer import BaseSemanticTrainer as BaseTrainer, SemanticTrainerWrapper
+from .cosine import BaseCosineSemanticTrainer as BaseTrainer, CosineSemanticTrainerWrapper as SemanticTrainerWrapper
 from .densifier import BaseSemanticDensificationTrainer
 
 

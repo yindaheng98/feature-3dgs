@@ -1,6 +1,6 @@
 from typing import Callable
 import torch
-from gaussian_splatting.utils import l1_loss, get_expon_lr_func
+from gaussian_splatting.utils import get_expon_lr_func
 from gaussian_splatting.trainer import TrainerWrapper, AbstractTrainer, BaseTrainer
 from gaussian_splatting import Camera
 from feature_3dgs import SemanticGaussianModel, FeatureCameraDataset
@@ -38,33 +38,39 @@ class SemanticTrainer(TrainerWrapper):
     def model(self) -> SemanticGaussianModel:
         return self.base_trainer.model
 
-    @classmethod
-    def semantic_loss(cls, render, gt):
-        return l1_loss(render, gt)
+    def semantic_loss(self, render, gt):
+        return torch.abs((render - gt))  # L1 loss
 
     def loss(self, out: dict, camera: Camera) -> torch.Tensor:
         loss = super().loss(out, camera)
+
         render = out['feature_map']
         gt = camera.custom_data['feature_map']
-        mask = camera.ground_truth_image_mask
-        match self.mask_mode:
-            case "none":
-                pass
-            case "ignore":
-                assert mask is not None, "Mask is required for 'ignore' mask policy"
-                render = render * mask.unsqueeze(0)
-                gt = gt * mask.unsqueeze(0)
-            case _:
-                raise ValueError(f"Unknown mask policy: {self.mask_mode}")
         semantic_loss = self.semantic_loss(render, gt)
 
-        smooth_loss = 0
+        smooth_loss = None
         encoded = out['feature_map_encoded']
         if gt.shape[1:] != encoded.shape[1:]:
             gt_encoded = self.model.get_decoder.encode_feature_map(camera.custom_data['feature_map'], camera)
             smooth_loss = self.semantic_loss(encoded, gt_encoded)
 
-        return loss + semantic_loss * self.semantic_loss_weight + smooth_loss * self.semantic_smooth_weight
+        match self.mask_mode:
+            case "none":
+                pass
+            case "ignore":
+                mask = camera.ground_truth_image_mask
+                assert mask is not None, "Mask is required for 'ignore' mask policy"
+                decoder = self.model.get_decoder
+                semantic_loss = semantic_loss * decoder.resize_mask(mask, render).unsqueeze(0)
+                if smooth_loss is not None:
+                    smooth_loss = smooth_loss * decoder.resize_mask(mask, encoded).unsqueeze(0)
+            case _:
+                raise ValueError(f"Unknown mask policy: {self.mask_mode}")
+
+        loss = loss + semantic_loss.mean() * self.semantic_loss_weight
+        if smooth_loss is not None:
+            loss = loss + smooth_loss.mean() * self.semantic_smooth_weight
+        return loss
 
 
 def SemanticTrainerWrapper(
