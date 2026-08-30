@@ -1,1 +1,6 @@
-from .pca import pca_transform_params, pca_inverse_transform_params, pca_inverse_transform_params_to_transform_params
+from .pca import (
+    pca_transform_params,
+    pca_inverse_transform_params,
+    pca_inverse_transform_params_to_transform_params,
+    cosine_pca_inverse_transform_params,
+)

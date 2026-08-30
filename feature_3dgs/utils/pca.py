@@ -3,6 +3,7 @@ from typing import Sequence
 
 import tqdm
 import torch
+import torch.nn.functional as F
 from gaussian_splatting import Camera
 
 
@@ -46,6 +47,38 @@ def pca_inverse_transform_params(
 
     device = cameras[0].custom_data['feature_map'].device
     return V.to(device), mean.to(device)
+
+
+def cosine_pca_inverse_transform_params(
+    cameras: Sequence[Camera],
+    n_components: int,
+    cache_device: str = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """PCA on L2-normalised features for cosine-similarity losses.
+
+    Each feature vector is unit-normalised, then uncentered SVD is taken
+    so the returned ``weight`` columns are the top-k directions of the
+    spherical Gram matrix.  ``bias`` is identically zero: an additive mean
+    would dominate cosine and is not a reconstruction offset.
+
+    Returns:
+        weight: ``(D, n_components)``
+        bias:   ``(D,)`` zeros
+    """
+    all_features = []
+    for camera in tqdm.tqdm(cameras, desc="Cosine PCA: collecting features"):
+        feature_map = camera.custom_data['feature_map']             # (D, H_p, W_p)
+        features = feature_map.reshape(feature_map.shape[0], -1).T  # (N_i, D)
+        if cache_device is not None:
+            features = features.to(cache_device)
+        all_features.append(features)
+    all_features = F.normalize(torch.cat(all_features, dim=0), dim=-1)  # (N_total, D)
+
+    _, _, V = torch.pca_lowrank(all_features, q=n_components, center=False)  # V: (D, k)
+    zeros = torch.zeros(all_features.shape[1], dtype=all_features.dtype, device=all_features.device)
+
+    device = cameras[0].custom_data['feature_map'].device
+    return V.to(device), zeros.to(device)
 
 
 def pca_inverse_transform_params_to_transform_params(weight: torch.Tensor, bias: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
