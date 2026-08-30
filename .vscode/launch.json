@@ -28,7 +28,7 @@
             ]
         },
         {
-            "name": "train 1000",
+            "name": "train 0",
             "type": "debugpy",
             "request": "launch",
             "module": "feature_3dgs.train",
@@ -44,7 +44,7 @@
                 "-d",
                 "output/truck-semantic",
                 "-i",
-                "1000",
+                "0",
                 "--mode",
                 "base",
                 "-l",

@@ -3,7 +3,6 @@ import os
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torchvision
 import matplotlib.pyplot as plt
 from tqdm import tqdm
@@ -12,27 +11,6 @@ from feature_3dgs import SemanticGaussianModel, get_available_extractor_decoders
 from feature_3dgs.extractor import FeatureCameraDataset
 from feature_3dgs.render import prepare_rendering
 from feature_3dgs.segmentation2d import get_feature
-
-
-def compute_3d_similarity(query: torch.Tensor, gaussians: SemanticGaussianModel, batch_size: int = 2 ** 16) -> torch.Tensor:
-    """Cosine similarity between *query* (D,) and every Gaussian's decoded semantic.
-
-    Decoding and similarity are computed in batches of *batch_size* to avoid
-    materialising the full (N, C_feat) tensor on the GPU at once.
-
-    Returns a (N,) tensor with values in [-1, 1].
-    """
-    encoded = gaussians.get_encoded_semantics          # (N, C_enc)
-    decoder = gaussians.get_decoder
-    q = query.unsqueeze(0)                             # (1, D)
-    parts = []
-    for start in range(0, encoded.shape[0], batch_size):
-        chunk = encoded[start:start + batch_size]      # (B, C_enc)
-        feat = decoder.decode_features(chunk)          # (B, C_feat)
-        sim = F.cosine_similarity(q, feat, dim=1)      # (B,)
-        parts.append(sim)
-        del feat
-    return torch.cat(parts, dim=0)
 
 
 def similarity_to_colors(similarity: torch.Tensor) -> torch.Tensor:
@@ -112,7 +90,7 @@ def save_segmentation(gaussians: SemanticGaussianModel, dataset: FeatureCameraDa
     """Render the 3D model from every dataset viewpoint and save."""
     os.makedirs(save_dir, exist_ok=True)
 
-    sim_3d = compute_3d_similarity(query, gaussians)
+    sim_3d = gaussians.get_decoder.similarity_encoded_features(query, gaussians.get_encoded_semantics)
     heatmap_colors = similarity_to_colors(sim_3d)
     mask_3d = sim_3d > threshold
     seg_opacity = gaussians.get_opacity.clone()

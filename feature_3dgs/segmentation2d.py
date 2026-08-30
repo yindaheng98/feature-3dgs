@@ -23,14 +23,6 @@ def get_feature(dataset: FeatureCameraDataset, image_index: int, x: int, y: int)
     return feature.squeeze(-1).squeeze(-1)
 
 
-def compute_similarity_map(query: torch.Tensor, feature_map: torch.Tensor) -> torch.Tensor:
-    """Per-patch cosine similarity between *query* (D,) and *feature_map* (D, H_p, W_p)."""
-    D, H_p, W_p = feature_map.shape
-    features = feature_map.reshape(D, -1).T
-    sim = F.cosine_similarity(query.unsqueeze(0), features, dim=1)
-    return sim.reshape(H_p, W_p)
-
-
 def segment_image(image: torch.Tensor, similarity: torch.Tensor, threshold: float) -> torch.Tensor:
     """Mask out pixels whose similarity is below *threshold*. Returns (3, H, W)."""
     H, W = image.shape[1], image.shape[2]
@@ -77,7 +69,8 @@ def save_segmentation(gaussians: SemanticGaussianModel, dataset: FeatureCameraDa
     for idx in tqdm(range(len(dataset)), desc="Saving 2D segmentation"):
 
         camera = dataset[idx]
-        sim = compute_similarity_map(query, camera.custom_data['feature_map'])
+        decoder = gaussians.get_decoder
+        sim = decoder.similarity(query, camera.custom_data['feature_map'].permute(1, 2, 0))
         img = camera.ground_truth_image
 
         img_seg = segment_image(img, sim, threshold)
@@ -87,7 +80,7 @@ def save_segmentation(gaussians: SemanticGaussianModel, dataset: FeatureCameraDa
         plt.close(fig)
 
         out = gaussians(camera)
-        sim = compute_similarity_map(query, out['feature_map'])
+        sim = decoder.similarity(query, out['feature_map'].permute(1, 2, 0))
         img = out['render']
 
         img_seg = segment_image(img, sim, threshold)
@@ -131,7 +124,7 @@ if __name__ == "__main__":
             extractor_configs=extractor_configs)
 
         feature = get_feature(dataset, args.image_index, args.x, args.y)
-        similarity_map = compute_similarity_map(feature, dataset[args.image_index].custom_data['feature_map'])
+        similarity_map = gaussians.get_decoder.similarity(feature, dataset[args.image_index].custom_data['feature_map'].permute(1, 2, 0))
         img = dataset[args.image_index].ground_truth_image  # (3, H, W)
         img_seg = segment_image(img, similarity_map, args.threshold)
 
