@@ -48,6 +48,8 @@ class AbstractSemanticDecoder(nn.Module):
       decode the query then ``similarity``.
     - ``similarity_encoded_features``: decoded query, encoded features.  Default:
       decode the features then ``similarity``.
+    - ``similarity_loss``: turn a similarity tensor of any shape into a loss
+      (default ``1 - similarity``).
     - ``resize_mask``: resize an image-resolution mask ``(H, W)`` to the
       spatial size of a feature map ``(H', W')``.  Default bilinear
       interpolate; subclasses may override to match
@@ -160,6 +162,13 @@ class AbstractSemanticDecoder(nn.Module):
     def similarity_encoded_features(self, query: torch.Tensor, encoded_features: torch.Tensor) -> torch.Tensor:
         """Similarity between a decoded query and encoded features."""
         return self.similarity(query, self.decode_features(encoded_features))
+
+    def similarity_loss(self, similarity: torch.Tensor) -> torch.Tensor:
+        """Convert a similarity tensor of any shape into a loss.
+
+        Default: ``1 - similarity``, same shape as the input.
+        """
+        return 1 - similarity
 
     def resize_mask(self, mask: torch.Tensor, feature_map: torch.Tensor) -> torch.Tensor:
         """Resize an image-resolution mask to the spatial size of *feature_map*.

@@ -1,5 +1,6 @@
 from typing import Callable
 import torch
+import torch.nn.functional as F
 from gaussian_splatting.utils import get_expon_lr_func
 from gaussian_splatting.trainer import TrainerWrapper, AbstractTrainer, BaseTrainer
 from gaussian_splatting import Camera
@@ -17,6 +18,7 @@ class SemanticTrainer(TrainerWrapper):
             semantic_decoder_lr_max_steps=30_000,
             semantic_loss_weight=1.0,
             semantic_smooth_weight=0.1,
+            semantic_similarity_weight=1.0,
             semantic_mask_mode="none",
     ):
         super().__init__(base_trainer=base_trainer)
@@ -32,6 +34,7 @@ class SemanticTrainer(TrainerWrapper):
         )
         self.semantic_loss_weight = semantic_loss_weight
         self.semantic_smooth_weight = semantic_smooth_weight
+        self.semantic_similarity_weight = semantic_similarity_weight
         self.mask_mode = semantic_mask_mode
 
     @property
@@ -39,7 +42,11 @@ class SemanticTrainer(TrainerWrapper):
         return self.base_trainer.model
 
     def semantic_loss(self, render, gt):
-        return torch.abs((render - gt))  # L1 loss
+        loss = torch.abs(render - gt)
+        if self.semantic_similarity_weight != 0:
+            sim = F.cosine_similarity(render, gt, dim=0)
+            loss = loss + self.semantic_similarity_weight * self.model.get_decoder.similarity_loss(sim)
+        return loss
 
     def loss(self, out: dict, camera: Camera) -> torch.Tensor:
         loss = super().loss(out, camera)
@@ -85,6 +92,7 @@ def SemanticTrainerWrapper(
         semantic_decoder_lr_max_steps=30_000,
         semantic_loss_weight=1.0,
         semantic_smooth_weight=0.1,
+        semantic_similarity_weight=1.0,
         semantic_mask_mode="none",
         **configs) -> SemanticTrainer:
     return SemanticTrainer(
@@ -97,6 +105,7 @@ def SemanticTrainerWrapper(
         semantic_decoder_lr_max_steps=semantic_decoder_lr_max_steps,
         semantic_loss_weight=semantic_loss_weight,
         semantic_smooth_weight=semantic_smooth_weight,
+        semantic_similarity_weight=semantic_similarity_weight,
         semantic_mask_mode=semantic_mask_mode,
     )
 

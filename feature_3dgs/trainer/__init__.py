@@ -1,5 +1,4 @@
 from .trainer import SemanticTrainer, SemanticTrainerWrapper
-from .cosine import CosineSemanticTrainer, CosineSemanticTrainerWrapper
 from .base import BaseTrainer, BaseCameraTrainer, BaseDepthTrainer
 from .densifier import *
 from .combinations import Trainer, CameraTrainer
