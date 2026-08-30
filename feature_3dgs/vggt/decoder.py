@@ -1,12 +1,12 @@
 import torch
 import torch.nn.functional as F
 from gaussian_splatting import Camera
-from feature_3dgs.decoder import LinearDecoder
+from feature_3dgs.decoder import CosineLinearDecoder
 
 from .extractor import compute_square_padding, compute_square_valid_region
 
 
-class VGGTLinearAvgDecoder(LinearDecoder):
+class VGGTLinearAvgDecoder(CosineLinearDecoder):
     """Decoder that aligns Gaussian features with VGGTExtractor output.
 
     ``decode_feature_map``: center-pad -> interpolate to the square model
