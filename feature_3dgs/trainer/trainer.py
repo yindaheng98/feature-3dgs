@@ -38,6 +38,10 @@ class SemanticTrainer(TrainerWrapper):
     def model(self) -> SemanticGaussianModel:
         return self.base_trainer.model
 
+    @classmethod
+    def semantic_loss(cls, render, gt):
+        return l1_loss(render, gt)
+
     def loss(self, out: dict, camera: Camera) -> torch.Tensor:
         loss = super().loss(out, camera)
         render = out['feature_map']
@@ -52,13 +56,13 @@ class SemanticTrainer(TrainerWrapper):
                 gt = gt * mask.unsqueeze(0)
             case _:
                 raise ValueError(f"Unknown mask policy: {self.mask_mode}")
-        semantic_loss = l1_loss(render, gt)
+        semantic_loss = self.semantic_loss(render, gt)
 
         smooth_loss = 0
         encoded = out['feature_map_encoded']
         if gt.shape[1:] != encoded.shape[1:]:
             gt_encoded = self.model.get_decoder.encode_feature_map(camera.custom_data['feature_map'], camera)
-            smooth_loss = l1_loss(encoded, gt_encoded)
+            smooth_loss = self.semantic_loss(encoded, gt_encoded)
 
         return loss + semantic_loss * self.semantic_loss_weight + smooth_loss * self.semantic_smooth_weight
 
