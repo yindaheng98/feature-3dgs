@@ -80,47 +80,47 @@ class LinearDecoder(AbstractTrainableDecoder):
         """``similarity(decode(encoded_query), decode(encoded_features))`` via the Gram matrix.
 
         Equivalent to ``cos(Wq + b, Ws + b)`` without materialising ``C_feat``.
+        Leading dims broadcast.
         """
         W, b = self.linear.weight, self.linear.bias
-        q = encoded_query.reshape(-1, encoded_query.shape[-1])
-        s = encoded_features.reshape(-1, encoded_features.shape[-1])
         G = W.T @ W
         c = W.T @ b
-        qG = q @ G
-        qc = q @ c
-        sc = s @ c
         bb = b @ b
-        num = qG @ s.T + qc.unsqueeze(-1) + sc.unsqueeze(0) + bb
-        den_q = ((qG * q).sum(-1) + 2 * qc + bb).clamp_min(1e-12).sqrt()
-        den_s = ((s @ G * s).sum(-1) + 2 * sc + bb).clamp_min(1e-12).sqrt()
-        sim = num / (den_q.unsqueeze(-1) * den_s.unsqueeze(0))
-        return sim.reshape(encoded_query.shape[:-1] + encoded_features.shape[:-1])
+        qG = encoded_query @ G
+        qc = encoded_query @ c
+        sc = encoded_features @ c
+        num = (qG * encoded_features).sum(-1) + qc + sc + bb
+        den_q = ((qG * encoded_query).sum(-1) + 2 * qc + bb).clamp_min(0).sqrt().clamp_min(1e-8)
+        den_s = ((encoded_features @ G * encoded_features).sum(-1) + 2 * sc + bb).clamp_min(0).sqrt().clamp_min(1e-8)
+        return num / (den_q * den_s)
 
     def similarity_encoded_query(self, encoded_query: torch.Tensor, features: torch.Tensor) -> torch.Tensor:
-        """``similarity(decode(encoded_query), features)`` without materialising decoded query."""
-        W, b = self.linear.weight, self.linear.bias
-        q = encoded_query.reshape(-1, encoded_query.shape[-1])
-        f = features.reshape(-1, features.shape[-1])
-        decoded_q = F.linear(q, W, b)
-        num = decoded_q @ f.T
-        den_q = decoded_q.norm(dim=-1).clamp_min(1e-12)
-        den_f = f.norm(dim=-1).clamp_min(1e-12)
-        sim = num / (den_q.unsqueeze(-1) * den_f.unsqueeze(0))
-        return sim.reshape(encoded_query.shape[:-1] + features.shape[:-1])
+        """``similarity(decode(encoded_query), features)`` without materialising decoded query.
 
-    def similarity_encoded_features(self, query: torch.Tensor, encoded_features: torch.Tensor) -> torch.Tensor:
-        """``similarity(query, decode(encoded_features))`` without materialising decoded features."""
+        Leading dims broadcast.  ``(Wq + b) · f = q · (W^T f) + b · f``.
+        """
         W, b = self.linear.weight, self.linear.bias
-        q = query.reshape(-1, query.shape[-1])
-        s = encoded_features.reshape(-1, encoded_features.shape[-1])
         G = W.T @ W
         c = W.T @ b
         bb = b @ b
-        num = (q @ W) @ s.T + (q @ b).unsqueeze(-1)
-        den_q = q.norm(dim=-1).clamp_min(1e-12)
-        den_s = ((s @ G * s).sum(-1) + 2 * (s @ c) + bb).clamp_min(1e-12).sqrt()
-        sim = num / (den_q.unsqueeze(-1) * den_s.unsqueeze(0))
-        return sim.reshape(query.shape[:-1] + encoded_features.shape[:-1])
+        num = (encoded_query * F.linear(features, W.T)).sum(-1) + (features * b).sum(-1)
+        den_q = ((encoded_query @ G * encoded_query).sum(-1) + 2 * (encoded_query @ c) + bb).clamp_min(0).sqrt().clamp_min(1e-8)
+        den_f = features.norm(dim=-1).clamp_min(1e-8)
+        return num / (den_q * den_f)
+
+    def similarity_encoded_features(self, query: torch.Tensor, encoded_features: torch.Tensor) -> torch.Tensor:
+        """``similarity(query, decode(encoded_features))`` without materialising decoded features.
+
+        Leading dims broadcast.  ``(Ws + b) · q = s · (W^T q) + b · q``.
+        """
+        W, b = self.linear.weight, self.linear.bias
+        G = W.T @ W
+        c = W.T @ b
+        bb = b @ b
+        num = (encoded_features * F.linear(query, W.T)).sum(-1) + (query * b).sum(-1)
+        den_q = query.norm(dim=-1).clamp_min(1e-8)
+        den_s = ((encoded_features @ G * encoded_features).sum(-1) + 2 * (encoded_features @ c) + bb).clamp_min(0).sqrt().clamp_min(1e-8)
+        return num / (den_q * den_s)
 
     # ------------------------------------------------------------------
     # Feature-map operations (no spatial resolution change by default)

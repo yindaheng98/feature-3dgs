@@ -39,9 +39,11 @@ class AbstractSemanticDecoder(nn.Module):
     - ``encode_feature_pixels``: per-pixel encoding that applies
       ``encode_features`` at full spatial resolution, the inverse of
       ``decode_feature_pixels`` (without weight/bias).
-    - ``similarity``: similarity between **decoded** query and features.
-      Compared on the last dim; leading dims are concatenated query-then-
-      features, e.g. ``(A, B, C)`` vs ``(M, N, C)`` → ``(A, B, M, N)``.
+    - ``similarity``: cosine similarity between **decoded** query and
+      features on the last dim (``F.cosine_similarity(..., dim=-1)``).
+      Leading dims broadcast, e.g. ``(C,)`` vs ``(H, W, C)`` → ``(H, W)``.
+      Cartesian pairs: unsqueeze first, e.g. ``(Q, 1, 1, C)`` vs
+      ``(H, W, C)`` → ``(Q, H, W)``.
     - ``similarity_encoded``: both arguments encoded.  Default: decode both
       then ``similarity``.
     - ``similarity_encoded_query``: encoded query, decoded features.  Default:
@@ -143,13 +145,9 @@ class AbstractSemanticDecoder(nn.Module):
     def similarity(self, query: torch.Tensor, features: torch.Tensor) -> torch.Tensor:
         """Cosine similarity on the last dim of decoded tensors.
 
-        Leading dims are an outer product, query then features:
-        ``(A, B, C)`` vs ``(M, N, C)`` → ``(A, B, M, N)``.
+        Leading dims broadcast like ``F.cosine_similarity(..., dim=-1)``.
         """
-        q = F.normalize(query, dim=-1)
-        f = F.normalize(features, dim=-1)
-        sim = q.reshape(-1, q.shape[-1]) @ f.reshape(-1, f.shape[-1]).T
-        return sim.reshape(query.shape[:-1] + features.shape[:-1])
+        return F.cosine_similarity(query, features, dim=-1)
 
     def similarity_encoded(self, encoded_query: torch.Tensor, encoded_features: torch.Tensor) -> torch.Tensor:
         """Similarity when both arguments are encoded."""
