@@ -35,9 +35,17 @@ class LinearDecoder(AbstractTrainableDecoder):
     # Per-point operations
     # ------------------------------------------------------------------
 
-    def decode_features(self, features: torch.Tensor) -> torch.Tensor:
-        """Pointwise decoding: (N, C_enc) -> (N, C_feat)."""
-        return self.linear(features)
+    def decode_features(self, features: torch.Tensor, weight: torch.Tensor = None, bias: torch.Tensor = None) -> torch.Tensor:
+        """Pointwise decoding: (N, C_enc) -> (N, C_feat).
+
+        When *weight* is given, fuses ``self.linear`` and the custom linear
+        into one:  weight_c = weight @ W1,  bias_c = weight @ b1 + bias.
+        """
+        if weight is None:
+            return self.linear(features)
+        combined_weight = weight @ self.linear.weight         # (C_proj, C_enc)
+        combined_bias = F.linear(self.linear.bias, weight, bias)
+        return F.linear(features, combined_weight, combined_bias)
 
     def encode_features(self, features: torch.Tensor) -> torch.Tensor:
         """Pointwise encoding via pseudo-inverse: (N, C_feat) -> (N, C_enc)."""
@@ -60,9 +68,10 @@ class LinearDecoder(AbstractTrainableDecoder):
         When *weight* is None, applies ``self.linear`` per pixel directly.
         """
         combined_weight = self.linear.weight
+        combined_bias = self.linear.bias
         if weight is not None:
             combined_weight = weight @ self.linear.weight         # (C_proj, C_enc)
-        combined_bias = F.linear(self.linear.bias, weight, bias)  # (C_proj,)
+            combined_bias = F.linear(self.linear.bias, weight, bias)  # (C_proj,)
         return F.conv2d(feature_map.unsqueeze(0), combined_weight[:, :, None, None], combined_bias).squeeze(0)
 
     def encode_feature_pixels(self, feature_map: torch.Tensor) -> torch.Tensor:
@@ -126,9 +135,9 @@ class LinearDecoder(AbstractTrainableDecoder):
     # Feature-map operations (no spatial resolution change by default)
     # ------------------------------------------------------------------
 
-    def decode_feature_map(self, feature_map: torch.Tensor) -> torch.Tensor:
+    def decode_feature_map(self, feature_map: torch.Tensor, weight: torch.Tensor = None, bias: torch.Tensor = None) -> torch.Tensor:
         """Per-pixel decoding: (C_enc, H, W) -> (C_feat, H, W)."""
-        return self.decode_feature_pixels(feature_map)
+        return self.decode_feature_pixels(feature_map, weight=weight, bias=bias)
 
     def encode_feature_map(self, feature_map: torch.Tensor, camera=None) -> torch.Tensor:
         """Per-pixel encoding: (C_feat, H, W) -> (C_enc, H, W)."""

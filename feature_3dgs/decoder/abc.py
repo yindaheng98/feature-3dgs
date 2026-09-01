@@ -19,10 +19,12 @@ class AbstractSemanticDecoder(nn.Module):
     Operations
     ----------
     - ``decode_features``: per-point decoding ``(N, C_enc) -> (N, C_feat)``,
-      applicable directly to per-Gaussian encoded semantics.
+      applicable directly to per-Gaussian encoded semantics.  Optionally
+      applies a custom linear layer (``weight`` / ``bias``).
     - ``decode_feature_map``: convert a full rendered feature map
       ``(C_enc, H, W)`` into extractor output format ``(C_feat, H', W')``,
-      matching both channel dimension and spatial resolution.  Subclasses
+      matching both channel dimension and spatial resolution.  Optionally
+      applies a custom linear layer (``weight`` / ``bias``).  Subclasses
       may override it with reparameterized, memory-efficient implementations
       — e.g. a single Conv2d that fuses per-point mapping and spatial
       downsampling without materialising a large intermediate tensor.
@@ -58,8 +60,22 @@ class AbstractSemanticDecoder(nn.Module):
       ``decode_feature_map`` geometry.
     """
 
-    def decode_features(self, features: torch.Tensor) -> torch.Tensor:
-        """Per-point decoding: (N, C_enc) -> (N, C_feat)."""
+    def decode_features(self, features: torch.Tensor, weight: torch.Tensor = None, bias: torch.Tensor = None) -> torch.Tensor:
+        """Per-point decoding: (N, C_enc) -> (N, C_feat).
+
+        Optionally applies a custom linear layer ``F.linear(x, weight, bias)``.
+
+        Args:
+            features: (N, C_enc) — encoded per-point features.
+            weight: (C_proj, C_feat) or None.  Skipped when None.
+            bias:   (C_proj,) or None.
+
+        Returns:
+            (N, C_feat) when weight is None,
+            (N, C_proj) when weight is given.
+        """
+        if weight is not None:
+            features = F.linear(features, weight, bias)
         return features
 
     def encode_features(self, features: torch.Tensor) -> torch.Tensor:
@@ -69,7 +85,7 @@ class AbstractSemanticDecoder(nn.Module):
         """
         return features
 
-    def decode_feature_map(self, feature_map: torch.Tensor) -> torch.Tensor:
+    def decode_feature_map(self, feature_map: torch.Tensor, weight: torch.Tensor = None, bias: torch.Tensor = None) -> torch.Tensor:
         """Convert rendered feature map to extractor output format.
 
         Default: apply decode_features per pixel (no spatial change).
@@ -77,13 +93,16 @@ class AbstractSemanticDecoder(nn.Module):
 
         Args:
             feature_map: (C_enc, H, W) — encoded (rasterised) feature map.
+            weight: (C_proj, C_feat) or None.  Skipped when None.
+            bias:   (C_proj,) or None.
 
         Returns:
-            (C_feat, H', W') matching extractor ground-truth output.
+            (C_feat, H', W') matching extractor ground-truth output when weight is None,
+            (C_proj, H', W') when weight is given.
         """
         C, H, W = feature_map.shape
         x = feature_map.permute(1, 2, 0).reshape(-1, C)  # (H*W, C_enc)
-        x = self.decode_features(x)                       # (H*W, C_feat)
+        x = self.decode_features(x, weight=weight, bias=bias)
         return x.reshape(H, W, -1).permute(2, 0, 1)       # (C_feat, H, W), override to change spatial resolution as well
 
     def encode_feature_map(self, feature_map: torch.Tensor, camera: Camera) -> torch.Tensor:
@@ -121,9 +140,7 @@ class AbstractSemanticDecoder(nn.Module):
         """
         C, H, W = feature_map.shape
         x = feature_map.permute(1, 2, 0).reshape(-1, C)  # (H*W, C_enc)
-        x = self.decode_features(x)                       # (H*W, C_feat)
-        if weight is not None:
-            x = F.linear(x, weight, bias)                  # (H*W, C_proj)
+        x = self.decode_features(x, weight=weight, bias=bias)
         return x.reshape(H, W, -1).permute(2, 0, 1)
 
     def encode_feature_pixels(self, feature_map: torch.Tensor) -> torch.Tensor:

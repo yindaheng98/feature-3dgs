@@ -25,7 +25,7 @@ class DINOv3LinearAvgDecoder(CosineLinearDecoder):
         super().__init__(*args, **configs)
         self.patch_size = patch_size
 
-    def decode_feature_map(self, feature_map: torch.Tensor) -> torch.Tensor:
+    def decode_feature_map(self, feature_map: torch.Tensor, weight: torch.Tensor = None, bias: torch.Tensor = None) -> torch.Tensor:
         """Fused linear + avg-pool via a single Conv2d.
 
         Equivalent to (but avoids the large (C_feat, H, W) intermediate):
@@ -39,12 +39,17 @@ class DINOv3LinearAvgDecoder(CosineLinearDecoder):
 
         Because avg_pool (mean over P² elements) and the linear layer are
         both linear operations, they fuse into one Conv2d with kernel
-        ``weight[:, :, None, None] / P²`` and stride P.
+        ``W[:, :, None, None] / P²`` and stride P.  An optional extra
+        linear (``weight`` / ``bias``) is fused the same way.
         """
         P = self.patch_size
         x = padding(feature_map, P)                        # (C_enc, H', W')
-        weight = self.linear.weight[:, :, None, None].expand(-1, -1, P, P) / (P * P)
-        return F.conv2d(x.unsqueeze(0), weight, self.linear.bias, stride=P).squeeze(0)
+        lin_weight, lin_bias = self.linear.weight, self.linear.bias
+        if weight is not None:
+            lin_weight = weight @ lin_weight
+            lin_bias = F.linear(lin_bias, weight, bias)
+        kernel = lin_weight[:, :, None, None].expand(-1, -1, P, P) / (P * P)
+        return F.conv2d(x.unsqueeze(0), kernel, lin_bias, stride=P).squeeze(0)
 
     def encode_feature_map(self, feature_map: torch.Tensor, camera: Camera) -> torch.Tensor:
         """Inverse of decode_feature_map: (C_feat, H_p, W_p) -> (C_enc, H, W).

@@ -28,11 +28,13 @@ class VGGTLinearAvgDecoder(CosineLinearDecoder):
         self.feat_size = feat_size
         self.kernel_size = kernel_size
 
-    def decode_feature_map(self, feature_map: torch.Tensor) -> torch.Tensor:
+    def decode_feature_map(self, feature_map: torch.Tensor, weight: torch.Tensor = None, bias: torch.Tensor = None) -> torch.Tensor:
         """Pad, interpolate, fused downsample+linear projection, then crop.
 
         This mirrors the extractor geometry so each output pixel corresponds
         to the same square-coordinate input region as the paired extractor.
+        An optional extra linear (``weight`` / ``bias``) is fused into the
+        same Conv2d.
         """
         _, H, W = feature_map.shape
         # 1. Center-pad to the same square coordinate system as the extractor
@@ -50,8 +52,12 @@ class VGGTLinearAvgDecoder(CosineLinearDecoder):
 
         # 3. Fused avg-pool downsampling + learned linear projection
         k = self.kernel_size
-        weight = self.linear.weight[:, :, None, None].expand(-1, -1, k, k) / (k * k)
-        square = F.conv2d(square.unsqueeze(0), weight, self.linear.bias, stride=k).squeeze(0)
+        lin_weight, lin_bias = self.linear.weight, self.linear.bias
+        if weight is not None:
+            lin_weight = weight @ lin_weight
+            lin_bias = F.linear(lin_bias, weight, bias)
+        kernel = lin_weight[:, :, None, None].expand(-1, -1, k, k) / (k * k)
+        square = F.conv2d(square.unsqueeze(0), kernel, lin_bias, stride=k).squeeze(0)
 
         # 4. Crop the valid region
         top, left, h, w = compute_square_valid_region(H, W, square_size=self.feat_size)
