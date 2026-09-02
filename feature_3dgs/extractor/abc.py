@@ -6,6 +6,12 @@ import torch
 
 class AbstractFeatureExtractor(ABC):
 
+    @property
+    @abstractmethod
+    def feature_dim(self) -> int:
+        """Channel dimension of the extracted semantic features."""
+        return 0
+
     @abstractmethod
     def __call__(self, image: torch.Tensor) -> torch.Tensor:
         pass

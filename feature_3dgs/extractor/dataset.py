@@ -42,8 +42,8 @@ class FeatureCameraDataset(CameraDataset):
         return self.cameras.scene_extent()
 
     @property
-    def embed_dim(self) -> int:
-        return self[0].custom_data['feature_map'].shape[0]
+    def feature_dim(self) -> int:
+        return self.extractor.feature_dim
 
     def preload_cache(self):
         self.feature_map_cache = []
