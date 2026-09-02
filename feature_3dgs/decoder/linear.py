@@ -189,3 +189,7 @@ class LinearDecoder(AbstractTrainableDecoder):
     @property
     def embed_dim(self) -> int:
         return self.linear.in_features
+
+    @property
+    def feat_dim(self) -> int:
+        return self.linear.out_features
