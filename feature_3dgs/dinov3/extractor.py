@@ -26,10 +26,15 @@ class DINOv3Extractor(AbstractFeatureExtractor):
     then bilinearly interpolates them to the original image resolution.
     """
 
-    def __init__(self, model: nn.Module, patch_size: int):
+    def __init__(self, model: nn.Module, patch_size: int, feature_dim: int):
         self.model = model
         self.patch_size = patch_size
+        self._feature_dim = feature_dim
         self.model.eval()
+
+    @property
+    def feature_dim(self) -> int:
+        return self._feature_dim
 
     @torch.no_grad()
     def __call__(self, image: torch.Tensor) -> torch.Tensor:

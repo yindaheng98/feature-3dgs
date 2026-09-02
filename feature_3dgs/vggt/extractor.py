@@ -78,10 +78,15 @@ class VGGTExtractor(AbstractFeatureExtractor):
     ``extract_all`` instead of ``__call__``.
     """
 
-    def __init__(self, model, img_load_resolution: int = 1024):
+    def __init__(self, model, feature_dim: int, img_load_resolution: int = 1024):
         self.model = model
         self.model.eval()
+        self._feature_dim = feature_dim
         self.img_load_resolution = img_load_resolution
+
+    @property
+    def feature_dim(self) -> int:
+        return self._feature_dim
 
     def __call__(self, image: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError(

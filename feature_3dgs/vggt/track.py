@@ -22,8 +22,12 @@ class VGGTrackExtractor(VGGTExtractor):
     ``extract_all`` instead of ``__call__``.
     """
 
-    def __init__(self, model, img_load_resolution: int = 1024):
-        super().__init__(model=model, img_load_resolution=img_load_resolution)
+    def __init__(self, model, feature_dim: int, img_load_resolution: int = 1024):
+        super().__init__(
+            model=model,
+            feature_dim=feature_dim,
+            img_load_resolution=img_load_resolution,
+        )
         self.feature_extractor = model.track_head.feature_extractor
 
     @torch.no_grad()

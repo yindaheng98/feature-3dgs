@@ -16,7 +16,11 @@ class VGGTTTTrackExtractor(VGGTTTExtractor, VGGTrackExtractor):
     ``extract_all`` instead of ``__call__``.
     """
 
-    def __init__(self, model, img_load_resolution: int = 1024):
+    def __init__(self, model, feature_dim: int, img_load_resolution: int = 1024):
         if model.track_head is None:
             raise ValueError("The loaded VGG-T3 model does not include a track head")
-        super().__init__(model=model, img_load_resolution=img_load_resolution)
+        super().__init__(
+            model=model,
+            feature_dim=feature_dim,
+            img_load_resolution=img_load_resolution,
+        )

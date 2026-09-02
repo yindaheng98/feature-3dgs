@@ -69,7 +69,11 @@ def DINOv3ConvNextExtractor(version: str = MODEL_DINOV3_CONVNEXTB, checkpoint_di
         model = MODEL_TO_FACTORY[version](pretrained=True, weights=local_path)
     else:
         model = MODEL_TO_FACTORY[version](pretrained=True)
-    return DINOv3Extractor(model=model, patch_size=INPUT_PAD_SIZE)
+    return DINOv3Extractor(
+        model=model,
+        patch_size=INPUT_PAD_SIZE,
+        feature_dim=CONVNEXT_FEATURE_DIMS[version],
+    )
 
 
 CONVNEXT_FEATURE_DIMS = {
@@ -81,11 +85,11 @@ CONVNEXT_FEATURE_DIMS = {
 
 
 def build_factory(version: str, **configs):
-    def factory(embed_dim: int, checkpoint_dir="checkpoints") -> Tuple[AbstractFeatureExtractor, AbstractTrainableDecoder]:
+    def factory(encoded_dim: int, checkpoint_dir="checkpoints") -> Tuple[AbstractFeatureExtractor, AbstractTrainableDecoder]:
         extractor = DINOv3ConvNextExtractor(version, checkpoint_dir=checkpoint_dir)
         decoder = DINOv3LinearAvgDecoder(
-            in_channels=embed_dim,
-            out_channels=CONVNEXT_FEATURE_DIMS[version],
+            in_channels=encoded_dim,
+            out_channels=extractor.feature_dim,
             patch_size=INPUT_PAD_SIZE,
             **configs
         )

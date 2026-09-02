@@ -36,20 +36,28 @@ def load_vggttt(checkpoint: str = DEFAULT_CHECKPOINT, track_checkpoint: str | No
 
 def VGGTTTFeatureExtractor(checkpoint: str = DEFAULT_CHECKPOINT, img_load_resolution: int = 1024) -> VGGTTTExtractor:
     model = load_vggttt(checkpoint)
-    return VGGTTTExtractor(model=model, img_load_resolution=img_load_resolution)
+    return VGGTTTExtractor(
+        model=model,
+        feature_dim=FEATURE_DIM,
+        img_load_resolution=img_load_resolution,
+    )
 
 
 def VGGTTTTrackFeatureExtractor(checkpoint: str = DEFAULT_CHECKPOINT, track_checkpoint: str = DEFAULT_TRACK_CHECKPOINT, img_load_resolution: int = 1024) -> VGGTTTTrackExtractor:
     model = load_vggttt(checkpoint, track_checkpoint=track_checkpoint)
-    return VGGTTTTrackExtractor(model=model, img_load_resolution=img_load_resolution)
+    return VGGTTTTrackExtractor(
+        model=model,
+        feature_dim=TRACK_FEATURE_DIM,
+        img_load_resolution=img_load_resolution,
+    )
 
 
 def build_factory():
-    def factory(embed_dim: int, checkpoint=DEFAULT_CHECKPOINT, img_load_resolution: int = 1024, **configs) -> Tuple[AbstractFeatureExtractor, AbstractTrainableDecoder]:
+    def factory(encoded_dim: int, checkpoint=DEFAULT_CHECKPOINT, img_load_resolution: int = 1024, **configs) -> Tuple[AbstractFeatureExtractor, AbstractTrainableDecoder]:
         extractor = VGGTTTFeatureExtractor(checkpoint, img_load_resolution=img_load_resolution)
         decoder = VGGTTTLinearAvgDecoder(
-            in_channels=embed_dim,
-            out_channels=FEATURE_DIM,
+            in_channels=encoded_dim,
+            out_channels=extractor.feature_dim,
             feat_size=FEAT_SIZE,
             kernel_size=PATCH_SIZE,
             **configs,
@@ -59,11 +67,11 @@ def build_factory():
 
 
 def build_track_factory():
-    def factory(embed_dim: int, checkpoint=DEFAULT_CHECKPOINT, track_checkpoint=DEFAULT_TRACK_CHECKPOINT, img_load_resolution: int = 1024, **configs) -> Tuple[AbstractFeatureExtractor, AbstractTrainableDecoder]:
+    def factory(encoded_dim: int, checkpoint=DEFAULT_CHECKPOINT, track_checkpoint=DEFAULT_TRACK_CHECKPOINT, img_load_resolution: int = 1024, **configs) -> Tuple[AbstractFeatureExtractor, AbstractTrainableDecoder]:
         extractor = VGGTTTTrackFeatureExtractor(checkpoint, track_checkpoint=track_checkpoint, img_load_resolution=img_load_resolution)
         decoder = VGGTTTLinearAvgDecoder(
-            in_channels=embed_dim,
-            out_channels=TRACK_FEATURE_DIM,
+            in_channels=encoded_dim,
+            out_channels=extractor.feature_dim,
             feat_size=TRACK_FEAT_SIZE,
             kernel_size=TRACK_PATCH_SIZE,
             **configs,

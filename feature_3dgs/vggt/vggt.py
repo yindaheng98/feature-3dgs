@@ -12,7 +12,7 @@ from .extractor import VGGTExtractor, FEAT_SIZE, PATCH_SIZE
 from .track import VGGTrackExtractor, FEAT_SIZE as TRACK_FEAT_SIZE, PATCH_SIZE as TRACK_PATCH_SIZE
 from .decoder import VGGTLinearAvgDecoder
 
-FEATURE_DIM = 2048              # 2 * embed_dim (1024)
+FEATURE_DIM = 2048              # Concatenated VGGT token channels
 TRACK_FEATURE_DIM = 128         # TrackHead DPT features
 
 MODEL_VGGT = "vggt"
@@ -30,20 +30,28 @@ def load_vggt(checkpoint: str = "checkpoints/vggt_1B_commercial.pt") -> VGGT:
 
 def VGGTFeatureExtractor(checkpoint: str = "checkpoints/vggt_1B_commercial.pt", img_load_resolution: int = 1024) -> VGGTExtractor:
     model = load_vggt(checkpoint)
-    return VGGTExtractor(model=model, img_load_resolution=img_load_resolution)
+    return VGGTExtractor(
+        model=model,
+        feature_dim=FEATURE_DIM,
+        img_load_resolution=img_load_resolution,
+    )
 
 
 def VGGTrackFeatureExtractor(checkpoint: str = "checkpoints/vggt_1B_commercial.pt", img_load_resolution: int = 1024) -> VGGTrackExtractor:
     model = load_vggt(checkpoint)
-    return VGGTrackExtractor(model=model, img_load_resolution=img_load_resolution)
+    return VGGTrackExtractor(
+        model=model,
+        feature_dim=TRACK_FEATURE_DIM,
+        img_load_resolution=img_load_resolution,
+    )
 
 
 def build_factory():
-    def factory(embed_dim: int, checkpoint="checkpoints/vggt_1B_commercial.pt", img_load_resolution: int = 1024, **configs) -> Tuple[AbstractFeatureExtractor, AbstractTrainableDecoder]:
+    def factory(encoded_dim: int, checkpoint="checkpoints/vggt_1B_commercial.pt", img_load_resolution: int = 1024, **configs) -> Tuple[AbstractFeatureExtractor, AbstractTrainableDecoder]:
         extractor = VGGTFeatureExtractor(checkpoint, img_load_resolution=img_load_resolution)
         decoder = VGGTLinearAvgDecoder(
-            in_channels=embed_dim,
-            out_channels=FEATURE_DIM,
+            in_channels=encoded_dim,
+            out_channels=extractor.feature_dim,
             feat_size=FEAT_SIZE,
             kernel_size=PATCH_SIZE,
             **configs,
@@ -53,11 +61,11 @@ def build_factory():
 
 
 def build_track_factory():
-    def factory(embed_dim: int, checkpoint="checkpoints/vggt_1B_commercial.pt", img_load_resolution: int = 1024, **configs) -> Tuple[AbstractFeatureExtractor, AbstractTrainableDecoder]:
+    def factory(encoded_dim: int, checkpoint="checkpoints/vggt_1B_commercial.pt", img_load_resolution: int = 1024, **configs) -> Tuple[AbstractFeatureExtractor, AbstractTrainableDecoder]:
         extractor = VGGTrackFeatureExtractor(checkpoint, img_load_resolution=img_load_resolution)
         decoder = VGGTLinearAvgDecoder(
-            in_channels=embed_dim,
-            out_channels=TRACK_FEATURE_DIM,
+            in_channels=encoded_dim,
+            out_channels=extractor.feature_dim,
             feat_size=TRACK_FEAT_SIZE,
             kernel_size=TRACK_PATCH_SIZE,
             **configs,

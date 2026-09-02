@@ -89,7 +89,11 @@ def DINOv3ViTExtractor(version: str = "dinov3_vitl16", checkpoint_dir: str = "ch
         model = MODEL_TO_FACTORY[version](pretrained=True, weights=local_path)
     else:
         model = MODEL_TO_FACTORY[version](pretrained=True)
-    return DINOv3Extractor(model=model, patch_size=PATCH_SIZE)
+    return DINOv3Extractor(
+        model=model,
+        patch_size=PATCH_SIZE,
+        feature_dim=FEATURE_DIMS[version],
+    )
 
 
 # Feature dimensions (D) for each backbone
@@ -104,11 +108,11 @@ FEATURE_DIMS = {
 
 
 def build_factory(version: str):
-    def factory(embed_dim: int, checkpoint_dir="checkpoints", **configs) -> Tuple[AbstractFeatureExtractor, AbstractTrainableDecoder]:
+    def factory(encoded_dim: int, checkpoint_dir="checkpoints", **configs) -> Tuple[AbstractFeatureExtractor, AbstractTrainableDecoder]:
         extractor = DINOv3ViTExtractor(version, checkpoint_dir=checkpoint_dir)
         decoder = DINOv3LinearAvgDecoder(
-            in_channels=embed_dim,
-            out_channels=FEATURE_DIMS[version],
+            in_channels=encoded_dim,
+            out_channels=extractor.feature_dim,
             patch_size=PATCH_SIZE,
             **configs
         )
