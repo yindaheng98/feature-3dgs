@@ -139,7 +139,7 @@ python -m feature_3dgs.show \
 
 ```shell
 python -m feature_3dgs.train \
-    --name dinov3_vitl16 --embed_dim 32 \
+    --name dinov3_vitl16 --encoded_dim 32 \
     -s data/truck -d output/truck-semantic -i 30000 \
     --mode densify
 ```
@@ -148,7 +148,7 @@ python -m feature_3dgs.train \
 
 ```shell
 python -m feature_3dgs.render \
-    --name dinov3_vitl16 --embed_dim 32 \
+    --name dinov3_vitl16 --encoded_dim 32 \
     -s data/truck -d output/truck-semantic -i 30000
 ```
 
@@ -158,7 +158,7 @@ Rendered feature maps are PCA-projected to RGB and saved alongside ground-truth 
 
 ```shell
 python -m feature_3dgs.viewer \
-    --name dinov3_vitl16 --embed_dim 32 \
+    --name dinov3_vitl16 --encoded_dim 32 \
     -s data/truck -d output/truck-semantic -i 30000 \
     --port 8080
 ```
@@ -175,7 +175,7 @@ from feature_3dgs.prepare import prepare_dataset_and_decoder
 dataset, decoder = prepare_dataset_and_decoder(
     name="dinov3_vitl16",   # registered extractor-decoder name
     source="data/truck",
-    embed_dim=32,
+    encoded_dim=32,
     device="cuda",
 )
 # dataset is a FeatureCameraDataset; each camera carries a 'feature_map' in custom_data
@@ -214,7 +214,7 @@ with torch.no_grad():
         out = gaussians(camera)
         rgb = out["render"]                  # (3, H, W)
         feat = out["feature_map"]            # (D, H', W')  decoded, extractor-aligned
-        feat_enc = out["feature_map_encoded"] # (embed_dim, H, W)  raw rasterised
+        feat_enc = out["feature_map_encoded"] # (encoded_dim, H, W)  raw rasterised
 
     # Per-Gaussian semantic features (no rendering needed)
     semantics = gaussians.get_semantics      # (N, D)  via decoder.decode_features
@@ -266,7 +266,7 @@ The trainable subclass `AbstractTrainableDecoder` adds:
 | `parameters()` | — | Return trainable parameters for the optimiser |
 
 ```
-Encoded semantics ──► Rasteriser ──► Raw Feature Map (embed_dim, H, W)
+Encoded semantics ──► Rasteriser ──► Raw Feature Map (encoded_dim, H, W)
                                            │
                           ┌────────────────┼────────────────┐
                           ▼                ▼                ▼
@@ -279,11 +279,11 @@ Encoded semantics ──► Rasteriser ──► Raw Feature Map (embed_dim, H, 
 
 The default `decode_feature_map` applies `decode_features` per pixel (no spatial change). Subclasses may override it with **reparameterized** implementations for memory efficiency — e.g. the DINOv3 decoder reparameterizes a linear mapping followed by patch-level average pooling into a single `F.conv2d` call, avoiding a large intermediate tensor. Similarly, `decode_feature_pixels` reparameterizes two sequential linear layers into one combined projection.
 
-The training loss is `L1(Decoded Feature Map, Extractor Feature Map)`. The decoder's role is to bridge the gap between the compact per-point embedding (`embed_dim`, typically 32) and the extractor's high-dimensional output (`D`, e.g. 1024 for ViT-L), while also handling any spatial resolution change.
+The training loss is `L1(Decoded Feature Map, Extractor Feature Map)`. The decoder's role is to bridge the gap between the compact per-point representation (`encoded_dim`, typically 32) and the extractor's high-dimensional output (`feature_dim`, equal to the decoder's `semantic_dim`; e.g. 1024 for ViT-L), while also handling any spatial resolution change.
 
 ### Why this split?
 
-1. **Memory efficiency**: Only `embed_dim` channels are stored per Gaussian and rasterised, not the full `D` channels. The decoder upprojects after rasterisation.
+1. **Memory efficiency**: Only `encoded_dim` channels are stored per Gaussian and rasterised, not the full `feature_dim` channels. The decoder upprojects after rasterisation.
 2. **Spatial alignment**: Foundation models often output at patch resolution (e.g. 1/16 for ViT). The decoder can downsample the rasterised full-resolution map to match, avoiding expensive full-resolution feature supervision.
 3. **Direct feature access**: `decode_features` can be applied directly to per-Gaussian encoded semantics (via `get_semantics`), producing extractor-aligned features without rendering.
 4. **Modularity**: Swapping the foundation model only requires a new Extractor-Decoder pair. The Gaussian model, trainer, and rendering pipeline remain unchanged.
@@ -304,6 +304,10 @@ class MyModelExtractor(AbstractFeatureExtractor):
     def __init__(self, model, ...):
         self.model = model
         self.model.eval()
+
+    @property
+    def feature_dim(self) -> int:
+        return ...  # D
 
     @torch.no_grad()
     def __call__(self, image: torch.Tensor) -> torch.Tensor:
@@ -359,11 +363,11 @@ from .decoder import MyModelDecoder
 
 FEATURE_DIM = 768  # D of your model's output
 
-def factory(embed_dim: int, **configs):
+def factory(encoded_dim: int, **configs):
     extractor = MyModelExtractor(...)
     decoder = MyModelDecoder(
-        in_channels=embed_dim,
-        out_channels=FEATURE_DIM,
+        in_channels=encoded_dim,
+        out_channels=extractor.feature_dim,
         ...
     )
     return extractor, decoder
@@ -388,7 +392,7 @@ from . import mymodel  # auto-registers "mymodel"
 After these steps, the new model is available everywhere:
 
 ```shell
-python -m feature_3dgs.train --name mymodel --embed_dim 32 -s data/truck -d output/truck-mymodel -i 30000
+python -m feature_3dgs.train --name mymodel --encoded_dim 32 -s data/truck -d output/truck-mymodel -i 30000
 ```
 
 ## Acknowledgement
