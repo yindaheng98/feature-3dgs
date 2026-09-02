@@ -13,10 +13,10 @@ class AbstractSemanticDecoder(nn.Module):
     -----------
     - **C_enc** — channel dimension of the *encoded* (compact) representation
       stored per Gaussian and produced by rasterisation.  Exposed as
-      ``embed_dim``.
-    - **C_feat** — channel dimension of the *decoded* feature, which matches
-      the ground-truth extractor output (e.g. DINOv2 feature dim).  Exposed
-      as ``feat_dim``.
+      ``encoded_dim``.
+    - **C_feat** — channel dimension of the decoded semantic feature, which
+      matches the extractor output (e.g. DINOv2 feature dim).  Exposed as
+      ``semantic_dim``.
 
     Operations
     ----------
@@ -210,14 +210,12 @@ class AbstractSemanticDecoder(nn.Module):
 
     @property
     @abstractmethod
-    def embed_dim(self) -> int:
+    def encoded_dim(self) -> int:
         """Encoded channel dimension ``C_enc`` stored per Gaussian."""
-        return 0
+        raise NotImplementedError
 
     @property
-    def feat_dim(self) -> int:
-        """Decoded channel dimension ``C_feat`` required by this decoder.
-
-        Default equals ``embed_dim`` (identity encode/decode).
-        """
-        return self.embed_dim
+    @abstractmethod
+    def semantic_dim(self) -> int:
+        """Decoded semantic channel dimension ``C_feat``."""
+        raise NotImplementedError

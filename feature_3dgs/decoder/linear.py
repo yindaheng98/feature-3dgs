@@ -187,9 +187,9 @@ class LinearDecoder(AbstractTrainableDecoder):
         gaussians._encoded_semantics = nn.Parameter(fused.requires_grad_(True))
 
     @property
-    def embed_dim(self) -> int:
+    def encoded_dim(self) -> int:
         return self.linear.in_features
 
     @property
-    def feat_dim(self) -> int:
+    def semantic_dim(self) -> int:
         return self.linear.out_features
