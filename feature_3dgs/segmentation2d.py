@@ -95,7 +95,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--sh_degree", default=3, type=int)
     parser.add_argument("--name", choices=get_available_extractor_decoders(), required=True, type=str)
-    parser.add_argument("--embed_dim", required=True, type=int)
+    parser.add_argument("--encoded_dim", required=True, type=int)
     parser.add_argument("-s", "--source", required=True, type=str)
     parser.add_argument("-d", "--destination", required=True, type=str)
     parser.add_argument("-i", "--iteration", required=True, type=int)
@@ -116,7 +116,7 @@ if __name__ == "__main__":
     with torch.no_grad():
         dataset, gaussians = prepare_rendering(
             name=args.name, sh_degree=args.sh_degree,
-            source=args.source, embed_dim=args.embed_dim,
+            source=args.source, encoded_dim=args.encoded_dim,
             device=args.device, dataset_cache_device=args.dataset_cache_device,
             trainable_camera=args.mode == "camera",
             load_ply=load_ply, load_camera=args.load_camera,

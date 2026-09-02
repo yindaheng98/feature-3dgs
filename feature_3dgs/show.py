@@ -45,7 +45,7 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--name", choices=get_available_extractor_decoders(), type=str)
     parser.add_argument("-s", "--source", required=True, type=str)
     parser.add_argument("-d", "--destination", required=True, type=str)
-    parser.add_argument("--embed-dim", default=3, type=int)
+    parser.add_argument("--encoded_dim", default=3, type=int)
     parser.add_argument("--device", default="cuda", type=str)
     parser.add_argument("--dataset_cache_device", default="cpu", type=str)
     parser.add_argument("--no_preload_dataset_cache", action="store_true")
@@ -54,7 +54,7 @@ if __name__ == "__main__":
 
     configs = {o.split("=", 1)[0]: eval(o.split("=", 1)[1]) for o in args.option}
     dataset, decoder = prepare_dataset_and_decoder(
-        name=args.name, source=args.source, embed_dim=args.embed_dim, device=args.device,
+        name=args.name, source=args.source, encoded_dim=args.encoded_dim, device=args.device,
         dataset_cache_device=args.dataset_cache_device,
         trainable_camera=False, load_camera=None, load_mask=False, load_depth=False,
         preload_cache=not args.no_preload_dataset_cache, configs=configs,

@@ -13,11 +13,11 @@ from feature_3dgs.utils import pca_transform_params
 
 
 def prepare_rendering(
-        name: str, sh_degree: int, source: str, embed_dim: int, device: str, dataset_cache_device: str = None,
+        name: str, sh_degree: int, source: str, encoded_dim: int, device: str, dataset_cache_device: str = None,
         trainable_camera: bool = False, load_ply: str = None, load_decoder: str = None, load_camera: str = None,
         load_mask=True, preload_cache: bool = True, extractor_configs={}) -> Tuple[FeatureCameraDataset, SemanticGaussianModel]:
     dataset, decoder = prepare_dataset_and_decoder(
-        name=name, source=source, embed_dim=embed_dim, device=device, dataset_cache_device=dataset_cache_device,
+        name=name, source=source, encoded_dim=encoded_dim, device=device, dataset_cache_device=dataset_cache_device,
         trainable_camera=trainable_camera, load_camera=load_camera,
         load_mask=load_mask, load_depth=False, preload_cache=preload_cache, configs=extractor_configs)
     gaussians = prepare_gaussians(
@@ -86,7 +86,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--sh_degree", default=3, type=int)
     parser.add_argument("--name", choices=get_available_extractor_decoders(), required=True, type=str)
-    parser.add_argument("--embed_dim", required=True, type=int)
+    parser.add_argument("--encoded_dim", required=True, type=int)
     parser.add_argument("-s", "--source", required=True, type=str)
     parser.add_argument("-d", "--destination", required=True, type=str)
     parser.add_argument("-i", "--iteration", required=True, type=int)
@@ -105,7 +105,7 @@ if __name__ == "__main__":
     with torch.no_grad():
         dataset, gaussians = prepare_rendering(
             name=args.name, sh_degree=args.sh_degree,
-            source=args.source, embed_dim=args.embed_dim,
+            source=args.source, encoded_dim=args.encoded_dim,
             device=args.device, dataset_cache_device=args.dataset_cache_device,
             trainable_camera=args.mode == "camera",
             load_ply=load_ply, load_decoder=args.load_decoder, load_camera=args.load_camera,

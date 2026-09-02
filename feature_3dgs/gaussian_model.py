@@ -198,7 +198,7 @@ class SemanticGaussianModel(GaussianModel):
         return out
 
     def reset_encoded_semantics(self):
-        encoded_semantics = torch.zeros((self._xyz.shape[0], self._decoder.embed_dim), dtype=torch.float, device=self._xyz.device)
+        encoded_semantics = torch.zeros((self._xyz.shape[0], self._decoder.encoded_dim), dtype=torch.float, device=self._xyz.device)
         self._encoded_semantics = nn.Parameter(encoded_semantics.requires_grad_(True))
         return self
 

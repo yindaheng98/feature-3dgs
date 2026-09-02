@@ -17,7 +17,7 @@ from .trainer import (
 
 
 def prepare_dataset_and_decoder(
-        name: str, source: str, embed_dim: int, device: str, dataset_cache_device: str = None,
+        name: str, source: str, encoded_dim: int, device: str, dataset_cache_device: str = None,
         trainable_camera: bool = False, load_camera: str = None, load_mask=True, load_depth=True,
         preload_cache: bool = True, configs={},
 ) -> Tuple[FeatureCameraDataset, AbstractTrainableDecoder]:
@@ -32,7 +32,7 @@ def prepare_dataset_and_decoder(
         load_mask=load_mask, load_depth=load_depth,
     )
     extractor, decoder = build_extractor_decoder(
-        name=name, embed_dim=embed_dim, **configs
+        name=name, encoded_dim=encoded_dim, **configs
     )
     dataset = (FeatureCameraDataset if not trainable_camera else TrainableFeatureCameraDataset)(cameras=cameras, extractor=extractor, cache_device=dataset_cache_device).to(device)
     if preload_cache:
