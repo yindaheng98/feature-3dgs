@@ -11,6 +11,7 @@ class FeatureCameraDataset(CameraDataset):
     def __init__(self, cameras: CameraDataset, extractor: AbstractFeatureExtractor, cache_device=None):
         self.cameras = cameras
         self.extractor = extractor
+        self._feature_dim = extractor.feature_dim
         self.feature_map_cache = [None] * len(cameras)
         self.cache_device = cache_device
 
@@ -43,7 +44,7 @@ class FeatureCameraDataset(CameraDataset):
 
     @property
     def feature_dim(self) -> int:
-        return self.extractor.feature_dim
+        return self._feature_dim
 
     def preload_cache(self):
         self.feature_map_cache = []
