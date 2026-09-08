@@ -28,23 +28,8 @@ Each Gaussian point carries a learnable **encoded semantics** embedding alongsid
 * [Pytorch](https://pytorch.org/) (>= v2.4 recommended)
 * [CUDA Toolkit](https://developer.nvidia.com/cuda-12-4-0-download-archive) (12.4 recommended, match with PyTorch version)
 
-Install `dinov3` and `vggt`:
-```shell
-pip install --upgrade git+https://github.com/facebookresearch/dinov3.git@main
-pip install --upgrade git+https://github.com/facebookresearch/vggt.git@main
-pip install --upgrade Pillow hydra-core omegaconf # deps for vggt
-pip install --upgrade git+https://github.com/jytime/LightGlue.git#egg=lightglue # deps for vggt
-```
-
-VGG-T³ support is bundled as a git submodule and currently requires a source
-checkout. Clone with `--recursive` as shown below, then install its runtime
-dependencies:
-
-```shell
-pip install -r submodules/vgg-ttt/requirements.txt
-```
-
 (Optional) If you have trouble with [`gaussian-splatting`](https://github.com/yindaheng98/gaussian-splatting), try to install it from source:
+
 ```sh
 pip install wheel setuptools
 pip install --upgrade git+https://github.com/yindaheng98/gaussian-splatting.git@master --no-build-isolation
@@ -55,20 +40,32 @@ pip install --upgrade git+https://github.com/yindaheng98/gaussian-splatting.git@
 ```shell
 pip install --upgrade feature-3dgs
 ```
-or
-build latest from source:
+
+PyPI wheels already include VGGT and VGG-T³. You do **not** need to install `vggt`, LightGlue, or the VGG-T³ submodule separately.
+
+To build the latest source instead, clone with `--recursive` (see Development Install below). A plain `pip install git+https://...` does not fetch submodules.
+
+### DINOv3
+
+DINOv3 is not bundled. Install it only if you use the `dinov3_*` extractors (PyPI wheels cannot ship this git dependency):
+
 ```shell
-pip install wheel setuptools
-pip install --upgrade git+https://github.com/yindaheng98/feature-3dgs.git@main --no-build-isolation
+pip install --upgrade git+https://github.com/facebookresearch/dinov3.git@main
 ```
 
+Source installs of `feature-3dgs` already pull DINOv3 in via `install_requires`.
+
 ### Development Install
+
+VGGT, VGG-T³, and the CUDA rasterizers live in git submodules and are packaged at install time, so clone with `--recursive`:
 
 ```shell
 git clone --recursive https://github.com/yindaheng98/feature-3dgs.git
 cd feature-3dgs
 pip install --target . --upgrade . --no-deps
 ```
+
+Development `--no-deps` skips DINOv3; install it with the command above if needed.
 
 ### Download Checkpoints
 
@@ -99,11 +96,7 @@ wget -P checkpoints/ https://huggingface.co/facebook/VGGT-1B-Commercial/resolve/
 
 #### VGG-T³
 
-The `vggttt` extractor downloads
-[`nvidia/vgg-ttt`](https://huggingface.co/nvidia/vgg-ttt) through
-`from_pretrained` on first use. The VGG-T³ code and model are released under
-the NVIDIA OneWay Noncommercial License; consult the bundled submodule license
-before use.
+The `vggttt` extractor downloads [`nvidia/vgg-ttt`](https://huggingface.co/nvidia/vgg-ttt) through `from_pretrained` on first use. The bundled VGG-T³ code and model are released under the NVIDIA OneWay Noncommercial License; consult the license in the [`vgg-ttt`](https://github.com/nv-dvl/vgg-ttt) repository before use.
 
 ## Command-Line Usage
 
@@ -252,18 +245,18 @@ The extractor defines the target feature space (dimension `D` and spatial resolu
 
 The decoder is a **learnable** module with three core operations (defined on `AbstractSemanticDecoder`):
 
-| Method | Signature | Purpose |
-|---|---|---|
-| `decode_features(features)` | `(N, C_in) → (N, C_out)` | Per-point mapping, usable on per-Gaussian encoded semantics directly |
-| `decode_feature_map(feature_map)` | `(C_in, H, W) → (C_out, H', W')` | Full rendered feature map → extractor output format (channel + spatial) |
-| `decode_feature_pixels(feature_map, weight, bias)` | `(C_in, H, W) → (C_proj, H, W)` | Per-pixel projection: `decode_features` + optional custom linear, spatial resolution preserved |
+| Method                                             | Signature                        | Purpose                                                                                        |
+| -------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `decode_features(features)`                        | `(N, C_in) → (N, C_out)`         | Per-point mapping, usable on per-Gaussian encoded semantics directly                           |
+| `decode_feature_map(feature_map)`                  | `(C_in, H, W) → (C_out, H', W')` | Full rendered feature map → extractor output format (channel + spatial)                        |
+| `decode_feature_pixels(feature_map, weight, bias)` | `(C_in, H, W) → (C_proj, H, W)`  | Per-pixel projection: `decode_features` + optional custom linear, spatial resolution preserved |
 
 The trainable subclass `AbstractTrainableDecoder` adds:
 
-| Method | Signature | Purpose |
-|---|---|---|
-| `init_semantic(gaussians, dataset)` | static | Build the mapping from data (e.g. PCA initialisation) |
-| `parameters()` | — | Return trainable parameters for the optimiser |
+| Method                              | Signature | Purpose                                               |
+| ----------------------------------- | --------- | ----------------------------------------------------- |
+| `init_semantic(gaussians, dataset)` | static    | Build the mapping from data (e.g. PCA initialisation) |
+| `parameters()`                      | —         | Return trainable parameters for the optimiser         |
 
 ```
 Encoded semantics ──► Rasteriser ──► Raw Feature Map (encoded_dim, H, W)
