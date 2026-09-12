@@ -13,20 +13,20 @@ Each Gaussian point carries a learnable **encoded semantics** embedding alongsid
 
 ## Features
 
-* [x] Organised as a standard Python package with `pip install` support
-* [x] Modular Extractor-Decoder architecture for plugging in arbitrary foundation models
-* [x] Built-in DINOv3 support (ViT and ConvNeXt backbones)
-* [x] Built-in VGGT and VGG-T³ multi-view feature extractors
-* [x] Auto-registration pattern — add new models with zero changes to core code
-* [x] PCA-based feature visualisation for both ground-truth and rendered feature maps
-* [x] All training modes from upstream: base, densify, camera, camera-densify
+- [x] Organised as a standard Python package with `pip install` support
+- [x] Modular Extractor-Decoder architecture for plugging in arbitrary foundation models
+- [x] Built-in DINOv3 support (ViT and ConvNeXt backbones)
+- [x] Built-in VGGT and VGG-T³ multi-view feature extractors
+- [x] Auto-registration pattern — add new models with zero changes to core code
+- [x] PCA-based feature visualisation for both ground-truth and rendered feature maps
+- [x] All training modes from upstream: base, densify, camera, camera-densify
 
 ## Install
 
 ### Prerequisites
 
-* [Pytorch](https://pytorch.org/) (>= v2.4 recommended)
-* [CUDA Toolkit](https://developer.nvidia.com/cuda-12-4-0-download-archive) (12.4 recommended, match with PyTorch version)
+- [Pytorch](https://pytorch.org/) (>= v2.4 recommended)
+- [CUDA Toolkit](https://developer.nvidia.com/cuda-12-4-0-download-archive) (12.4 recommended, match with PyTorch version)
 
 (Optional) If you have trouble with [`gaussian-splatting`](https://github.com/yindaheng98/gaussian-splatting), try to install it from source:
 
@@ -98,6 +98,15 @@ wget -P checkpoints/ https://huggingface.co/facebook/VGGT-1B-Commercial/resolve/
 
 The `vggttt` extractor downloads [`nvidia/vgg-ttt`](https://huggingface.co/nvidia/vgg-ttt) through `from_pretrained` on first use. The bundled VGG-T³ code and model are released under the NVIDIA OneWay Noncommercial License; consult the license in the [`vgg-ttt`](https://github.com/nv-dvl/vgg-ttt) repository before use.
 
+#### MV-TAP
+
+MV-TAP checkpoint (from the [MV-TAP release](https://drive.google.com/file/d/1sCml0BL6VQGy-MGgpidz2-BdymAJhboU/view?usp=sharing)):
+
+```shell
+mkdir -p checkpoints
+# save the downloaded file as checkpoints/mvtap.ckpt
+```
+
 ## Command-Line Usage
 
 ### Visualise Extractor Output
@@ -115,10 +124,10 @@ VGGT-family extractors process all views jointly and therefore require dataset
 cache preloading (enabled by default). The VGG-T³ extractors are CUDA-only.
 Available registered names are:
 
-* `vggt`: final aggregator patch tokens, 2048 channels
-* `vggtrack`: VGGT TrackHead DPT features, 128 channels
-* `vggttt`: VGG-T³ final aggregator patch tokens, 2048 channels
-* `vggttttrack`: VGG-T³ aggregation with the VGGT TrackHead, 128 channels
+- `vggt`: final aggregator patch tokens, 2048 channels
+- `vggtrack`: VGGT TrackHead DPT features, 128 channels
+- `vggttt`: VGG-T³ final aggregator patch tokens, 2048 channels
+- `vggttttrack`: VGG-T³ aggregation with the VGGT TrackHead, 128 channels
 
 For example:
 
@@ -397,7 +406,7 @@ This repo is developed based on [Feature 3DGS](https://github.com/ShijieZhou-UCL
 Shijie Zhou, Haoran Chang\*, Sicheng Jiang\*, Zhiwen Fan, Zehao Zhu, Dejia Xu, Pradyumna Chari, Suya You, Zhangyang Wang, Achuta Kadambi (\* indicates equal contribution)<br>
 | [Webpage](https://feature-3dgs.github.io/) | [Full Paper](https://arxiv.org/abs/2312.03203) | [Video](https://www.youtube.com/watch?v=h4zmQsCV_Qw) | [Original Code](https://github.com/ShijieZhou-UCLA/feature-3dgs) |
 
-Abstract: *3D scene representations have gained immense popularity in recent years. Methods that use Neural Radiance fields are versatile for traditional tasks such as novel view synthesis. In recent times, some work has emerged that aims to extend the functionality of NeRF beyond view synthesis, for semantically aware tasks such as editing and segmentation using 3D feature field distillation from 2D foundation models. However, these methods have two major limitations: (a) they are limited by the rendering speed of NeRF pipelines, and (b) implicitly represented feature fields suffer from continuity artifacts reducing feature quality. Recently, 3D Gaussian Splatting has shown state-of-the-art performance on real-time radiance field rendering. In this work, we go one step further: in addition to radiance field rendering, we enable 3D Gaussian splatting on arbitrary-dimension semantic features via 2D foundation model distillation. This translation is not straightforward: naively incorporating feature fields in the 3DGS framework encounters significant challenges, notably the disparities in spatial resolution and channel consistency between RGB images and feature maps. We propose architectural and training changes to efficiently avert this problem. Our proposed method is general, and our experiments showcase novel view semantic segmentation, language-guided editing and segment anything through learning feature fields from state-of-the-art 2D foundation models such as SAM and CLIP-LSeg. Across experiments, our distillation method is able to provide comparable or better results, while being significantly faster to both train and render. Additionally, to the best of our knowledge, we are the first method to enable point and bounding-box prompting for radiance field manipulation, by leveraging the SAM model.*
+Abstract: _3D scene representations have gained immense popularity in recent years. Methods that use Neural Radiance fields are versatile for traditional tasks such as novel view synthesis. In recent times, some work has emerged that aims to extend the functionality of NeRF beyond view synthesis, for semantically aware tasks such as editing and segmentation using 3D feature field distillation from 2D foundation models. However, these methods have two major limitations: (a) they are limited by the rendering speed of NeRF pipelines, and (b) implicitly represented feature fields suffer from continuity artifacts reducing feature quality. Recently, 3D Gaussian Splatting has shown state-of-the-art performance on real-time radiance field rendering. In this work, we go one step further: in addition to radiance field rendering, we enable 3D Gaussian splatting on arbitrary-dimension semantic features via 2D foundation model distillation. This translation is not straightforward: naively incorporating feature fields in the 3DGS framework encounters significant challenges, notably the disparities in spatial resolution and channel consistency between RGB images and feature maps. We propose architectural and training changes to efficiently avert this problem. Our proposed method is general, and our experiments showcase novel view semantic segmentation, language-guided editing and segment anything through learning feature fields from state-of-the-art 2D foundation models such as SAM and CLIP-LSeg. Across experiments, our distillation method is able to provide comparable or better results, while being significantly faster to both train and render. Additionally, to the best of our knowledge, we are the first method to enable point and bounding-box prompting for radiance field manipulation, by leveraging the SAM model._
 
 <section class="section" id="BibTeX">
   <div class="container is-max-desktop content">
