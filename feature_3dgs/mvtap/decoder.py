@@ -3,7 +3,7 @@ import torch.nn.functional as F
 from gaussian_splatting import Camera
 from feature_3dgs.decoder import CosineLinearDecoder
 
-from .extractor import padding
+from .extractor import padding, STRIDE
 
 
 class MVTAPLinearAvgDecoder(CosineLinearDecoder):
@@ -20,27 +20,16 @@ class MVTAPLinearAvgDecoder(CosineLinearDecoder):
         https://github.com/cvlab-kaist/MV-TAP/blob/b248aea43dd04c79679563abb44bb6bd914e1224/models/mvtap.py#L391
     """
 
-    def __init__(self, *args, stride: int, **configs):
-        """
-        Args:
-            in_channels:  Per-point semantic embedding dimension rendered by
-                          the Gaussian rasteriser.
-            out_channels: Feature dimension D produced by MVTAPExtractor.
-            stride:       Downsample stride used by the paired MVTAPExtractor.
-        """
-        super().__init__(*args, **configs)
-        self.stride = stride
-
     def decode_feature_map(self, feature_map: torch.Tensor, weight: torch.Tensor = None, bias: torch.Tensor = None) -> torch.Tensor:
         """Linear projection, then bilinear downsample like ``BasicEncoder``.
 
         Equivalent to:
 
-            x = padding(feature_map, S)                   # (C_enc, H', W')
+            x = padding(feature_map)                      # (C_enc, H', W')
             x = self.decode_feature_pixels(x, weight, bias)
             x = F.interpolate(
                 x.unsqueeze(0),
-                (H' // S, W' // S),
+                (H' // STRIDE, W' // STRIDE),
                 mode="bilinear",
                 align_corners=True,
             ).squeeze(0)
@@ -60,14 +49,13 @@ class MVTAPLinearAvgDecoder(CosineLinearDecoder):
         spatial mix) commute, so an optional extra linear is fused inside
         ``decode_feature_pixels`` before the resize.
         """
-        S = self.stride
-        x = padding(feature_map, S)
+        x = padding(feature_map)
         x = self.decode_feature_pixels(x, weight=weight, bias=bias)
         _, H, W = x.shape
         # models/blocks.py L273-L279: bilinear to (H // stride, W // stride)
         return F.interpolate(
             x.unsqueeze(0),
-            (H // S, W // S),
+            (H // STRIDE, W // STRIDE),
             mode="bilinear",
             align_corners=True,
         ).squeeze(0)
