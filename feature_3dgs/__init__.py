@@ -5,3 +5,4 @@ from .registry import register_extractor_decoder, get_available_extractor_decode
 from . import dinov3
 from . import vggt
 from . import vggttt
+from . import mvtap
