@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import math
 import torch
 import torch.nn as nn
@@ -5,6 +7,12 @@ from gaussian_splatting import GaussianModel, Camera
 from gaussian_splatting.utils import normalize_quaternion, quaternion_to_matrix, quaternion_raw_multiply
 from .decoder.abc import AbstractSemanticDecoder
 from .diff_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
+from .utils.featurefusion import feature_fusion_alpha_avg, feature_fusion_alpha_max
+from .utils.featurepickup import feature_pickup_alpha_max
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .extractor import FeatureCameraDataset
 
 
 class SemanticGaussianModel(GaussianModel):
@@ -197,8 +205,27 @@ class SemanticGaussianModel(GaussianModel):
         }
         return out
 
-    def reset_encoded_semantics(self):
-        encoded_semantics = torch.zeros((self._xyz.shape[0], self._decoder.encoded_dim), dtype=torch.float, device=self._xyz.device)
+    def reset_encoded_semantics(self, dataset: FeatureCameraDataset | None = None, mode: str = "fusion avg"):
+        """Reset per-Gaussian encoded semantics.
+
+        With no *dataset*, fills zeros of shape ``(N, encoded_dim)``.
+        With a *dataset*, encodes each view through the decoder and
+        back-projects onto the Gaussians:
+
+        - ``"pickup max"``: pick the highest-alpha pixel per Gaussian
+        - ``"fusion avg"``: alpha-weighted average over views
+        - ``"fusion max"``: alpha-weighted max over views
+        """
+        if dataset is None:
+            encoded_semantics = torch.zeros((self._xyz.shape[0], self._decoder.encoded_dim), dtype=torch.float, device=self._xyz.device)
+        elif mode == "pickup max":
+            encoded_semantics, _ = feature_pickup_alpha_max(self, dataset, self._decoder.encode_feature_pixels)
+        elif mode == "fusion avg":
+            encoded_semantics, _ = feature_fusion_alpha_avg(self, dataset, self._decoder.encode_feature_map)
+        elif mode == "fusion max":
+            encoded_semantics, _ = feature_fusion_alpha_max(self, dataset, self._decoder.encode_feature_map)
+        else:
+            raise ValueError(f"Unsupported encoded-semantics init mode {mode!r}")
         self._encoded_semantics = nn.Parameter(encoded_semantics.requires_grad_(True))
         return self
 

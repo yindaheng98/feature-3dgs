@@ -10,7 +10,6 @@ from feature_3dgs.utils import cosine_pca_inverse_transform_params
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from feature_3dgs.extractor import FeatureCameraDataset
-    from feature_3dgs.gaussian_model import SemanticGaussianModel
 
 
 class CosineLinearDecoder(LinearDecoder):
@@ -30,8 +29,8 @@ class CosineLinearDecoder(LinearDecoder):
       and ``cos(decode(s), f) = ⟨s, encode(f)⟩ / ‖s‖``.
     """
 
-    def __init__(self, in_channels: int, out_channels: int, init_method="fusion avg"):
-        super().__init__(in_channels, out_channels, init_method)
+    def __init__(self, in_channels: int, out_channels: int):
+        super().__init__(in_channels, out_channels)
         nn.init.zeros_(self.linear.bias)
         self.linear.bias.requires_grad_(False)
 
@@ -49,12 +48,11 @@ class CosineLinearDecoder(LinearDecoder):
         feature_map = F.normalize(feature_map, dim=0)
         return F.conv2d(feature_map.unsqueeze(0), W_adj[:, :, None, None]).squeeze(0)
 
-    @staticmethod
     def init_semantic(
-            gaussians: SemanticGaussianModel,
+            self,
             dataset: FeatureCameraDataset,
             decoder: LinearDecoder | None = None):
-        """Initialise semantics from cosine PCA or a preloaded linear decoder.
+        """Initialise ``self.linear`` from cosine PCA or a preloaded linear decoder.
 
         When *decoder* is None, sets ``self.linear`` to the uncentered SVD of
         unit-normalised extractor features (``bias`` stays zero).
@@ -63,7 +61,6 @@ class CosineLinearDecoder(LinearDecoder):
         always reset to zero so a reconstruction decoder cannot reintroduce
         the feature mean.
         """
-        self: CosineLinearDecoder = gaussians.get_decoder
         if decoder is None:
             weight, bias = cosine_pca_inverse_transform_params(
                 dataset, n_components=self.linear.in_features,
@@ -79,5 +76,3 @@ class CosineLinearDecoder(LinearDecoder):
                     self.linear.weight.copy_(decoder.linear.weight)
             with torch.no_grad():
                 self.linear.bias.zero_()
-        # Reuse fusion / pickup; pass self so reconstruction PCA and bias copy are skipped.
-        LinearDecoder.init_semantic(gaussians, dataset, decoder=self)

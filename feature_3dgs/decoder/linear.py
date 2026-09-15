@@ -6,13 +6,10 @@ import torch.nn.functional as F
 
 from .trainable import AbstractTrainableDecoder
 from feature_3dgs.utils import pca_inverse_transform_params
-from feature_3dgs.utils.featurefusion import feature_fusion_alpha_avg, feature_fusion_alpha_max
-from feature_3dgs.utils.featurepickup import feature_pickup_alpha_max
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from feature_3dgs.extractor import FeatureCameraDataset
-    from feature_3dgs.gaussian_model import SemanticGaussianModel
 
 
 class LinearDecoder(AbstractTrainableDecoder):
@@ -25,11 +22,9 @@ class LinearDecoder(AbstractTrainableDecoder):
     downsampling / upsampling.
     """
 
-    def __init__(self, in_channels: int, out_channels: int, init_method="fusion avg"):
+    def __init__(self, in_channels: int, out_channels: int):
         super().__init__()
         self.linear = nn.Linear(in_channels, out_channels)
-        assert init_method in ["pickup max", "fusion avg", "fusion max"], f"Unsupported init method {init_method}"
-        self.init_method = init_method
 
     # ------------------------------------------------------------------
     # Per-point operations
@@ -147,12 +142,11 @@ class LinearDecoder(AbstractTrainableDecoder):
     # Initialisation
     # ------------------------------------------------------------------
 
-    @staticmethod
     def init_semantic(
-            gaussians: SemanticGaussianModel,
+            self,
             dataset: FeatureCameraDataset,
             decoder: LinearDecoder | None = None):
-        """Initialise semantics from PCA or a preloaded linear decoder.
+        """Initialise ``self.linear`` from PCA or a preloaded linear decoder.
 
         When *decoder* is None, collects all feature vectors from the
         dataset, computes PCA, and sets ``self.linear`` so that it initially
@@ -160,10 +154,10 @@ class LinearDecoder(AbstractTrainableDecoder):
           - weight = top-k principal components  (out_channels, in_channels)
           - bias   = feature mean                (out_channels,)
 
-        When *decoder* is provided, copies its linear weights before
-        computing the fused encoded semantics.
+        When *decoder* is provided, copies its linear weights instead.
+        Per-Gaussian encoded semantics are initialised separately by
+        ``SemanticGaussianModel.reset_encoded_semantics``.
         """
-        self: LinearDecoder = gaussians.get_decoder
         if decoder is None:
             weight, bias = pca_inverse_transform_params(
                 dataset, n_components=self.linear.in_features, whiten=False,
@@ -178,13 +172,6 @@ class LinearDecoder(AbstractTrainableDecoder):
                 with torch.no_grad():
                     self.linear.weight.copy_(decoder.linear.weight)
                     self.linear.bias.copy_(decoder.linear.bias)
-        if self.init_method == "pickup max":
-            fused, _ = feature_pickup_alpha_max(gaussians, dataset, self.encode_feature_pixels)
-        elif self.init_method == "fusion avg":
-            fused, _ = feature_fusion_alpha_avg(gaussians, dataset, self.encode_feature_map)
-        elif self.init_method == "fusion max":
-            fused, _ = feature_fusion_alpha_max(gaussians, dataset, self.encode_feature_map)  # worse than avg
-        gaussians._encoded_semantics = nn.Parameter(fused.requires_grad_(True))
 
     @property
     def encoded_dim(self) -> int:

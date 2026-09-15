@@ -262,10 +262,10 @@ The decoder is a **learnable** module with three core operations (defined on `Ab
 
 The trainable subclass `AbstractTrainableDecoder` adds:
 
-| Method                              | Signature | Purpose                                               |
-| ----------------------------------- | --------- | ----------------------------------------------------- |
-| `init_semantic(gaussians, dataset)` | static    | Build the mapping from data (e.g. PCA initialisation) |
-| `parameters()`                      | —         | Return trainable parameters for the optimiser         |
+| Method                                | Signature | Purpose                                                 |
+| ------------------------------------- | --------- | ------------------------------------------------------- |
+| `init_semantic(dataset, decoder=None)` | instance  | Initialise decoder parameters from data (e.g. PCA)      |
+| `parameters()`                        | —         | Return trainable parameters for the optimiser           |
 
 ```
 Encoded semantics ──► Rasteriser ──► Raw Feature Map (encoded_dim, H, W)

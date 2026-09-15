@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from abc import abstractmethod
 from .abc import AbstractSemanticDecoder
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from feature_3dgs.extractor import FeatureCameraDataset
-    from feature_3dgs.gaussian_model import SemanticGaussianModel
 
 
 class AbstractTrainableDecoder(AbstractSemanticDecoder):
@@ -16,16 +14,15 @@ class AbstractTrainableDecoder(AbstractSemanticDecoder):
     - ``init_semantic``: initialise the decoder (e.g. via PCA on extractor features).
     """
 
-    @staticmethod
     def init_semantic(
-            gaussians: SemanticGaussianModel,
+            self,
             dataset: FeatureCameraDataset,
             decoder: AbstractSemanticDecoder | None = None):
-        """Build the feature mapping from data (e.g. PCA). Called before training.
+        """Initialise decoder parameters from data (e.g. PCA). Called before training.
 
         Args:
-            gaussians: Target Gaussian model whose decoder / semantics will be initialized.
-            dataset: Dataset used to initialize semantic features.
-            decoder: Optional preloaded decoder to reuse during initialization.
+            dataset: Dataset used to initialise decoder parameters.
+            decoder: Optional preloaded decoder whose parameters are copied instead of
+                fitting from *dataset*.
         """
         pass

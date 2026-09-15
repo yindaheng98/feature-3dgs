@@ -44,14 +44,14 @@ def prepare_gaussians(
         decoder: AbstractTrainableDecoder, sh_degree: int,
         source: str, dataset: FeatureCameraDataset, device: str,
         trainable_camera: bool = False, load_ply: str = None, load_semantic: bool = True, load_decoder: str = None,
+        init_mode: str = "fusion avg",
 ) -> SemanticGaussianModel:
     from .gaussian_model import SemanticGaussianModel, CameraTrainableSemanticGaussianModel
     gaussians = (SemanticGaussianModel if not trainable_camera else CameraTrainableSemanticGaussianModel)(sh_degree, decoder=decoder).to(device)
     gaussians.load_ply(load_ply, load_semantic=load_semantic) if load_ply else colmap_init(gaussians, source)
     if not load_ply or not load_semantic:
-        decoder.init_semantic(
-            gaussians, dataset,
-            decoder=gaussians.load_decoder(load_decoder) if load_decoder is not None else None)
+        decoder.init_semantic(dataset, decoder=gaussians.load_decoder(load_decoder) if load_decoder is not None else None)
+        gaussians.reset_encoded_semantics(dataset, mode=init_mode)
     return gaussians
 
 
