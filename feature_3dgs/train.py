@@ -13,6 +13,7 @@ def prepare_training(
         trainable_camera: bool = False, load_ply: str = None, load_decoder: str = None, load_camera: str = None,
         load_mask=True, load_depth=True, load_semantic: bool = True,
         preload_cache: bool = True, configs={}, extractor_configs={},
+        init_mode: str = "fusionavg",
 ) -> Tuple[FeatureCameraDataset, SemanticGaussianModel, AbstractTrainer]:
     dataset, decoder = prepare_dataset_and_decoder(
         name=name, source=source, encoded_dim=encoded_dim, device=device, dataset_cache_device=dataset_cache_device,
@@ -20,7 +21,8 @@ def prepare_training(
         load_mask=load_mask, load_depth=load_depth, preload_cache=preload_cache, configs=extractor_configs)
     gaussians = prepare_gaussians(
         decoder=decoder, sh_degree=sh_degree, source=source, dataset=dataset, device=device,
-        trainable_camera=trainable_camera, load_ply=load_ply, load_semantic=load_semantic, load_decoder=load_decoder)
+        trainable_camera=trainable_camera, load_ply=load_ply, load_semantic=load_semantic, load_decoder=load_decoder,
+        init_mode=init_mode)
     trainer = prepare_trainer(
         gaussians=gaussians, dataset=dataset, mode=mode,
         trainable_camera=trainable_camera, configs=configs)
@@ -43,6 +45,7 @@ if __name__ == "__main__":
     parser.add_argument("--no_depth_data", action="store_true")
     parser.add_argument("--no_load_semantic", action="store_true")
     parser.add_argument("--mode", choices=sorted(modes.keys()), default="base")
+    parser.add_argument("--init_mode", default="fusionavg")
     parser.add_argument("--save_iterations", nargs="+", type=int, default=[7000, 30000])
     parser.add_argument("--device", default="cuda", type=str)
     parser.add_argument("--dataset_cache_device", default="cpu", type=str)
@@ -63,7 +66,8 @@ if __name__ == "__main__":
         trainable_camera="camera" in args.mode,
         load_ply=args.load_ply, load_decoder=args.load_decoder, load_camera=args.load_camera,
         load_mask=not args.no_image_mask, load_depth=not args.no_depth_data, load_semantic=not args.no_load_semantic,
-        preload_cache=not args.no_preload_dataset_cache, configs=configs, extractor_configs=extractor_configs)
+        preload_cache=not args.no_preload_dataset_cache, configs=configs, extractor_configs=extractor_configs,
+        init_mode=args.init_mode)
     dataset.save_cameras(os.path.join(args.destination, "cameras.json"))
     torch.cuda.empty_cache()
     training(

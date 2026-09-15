@@ -90,6 +90,7 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--iteration", required=True, type=int)
     parser.add_argument("--load_camera", default=None, type=str)
     parser.add_argument("--mode", choices=["base", "camera"], default="base")
+    parser.add_argument("--init_mode", default="fusionavg")
     parser.add_argument("--device", default="cuda", type=str)
     parser.add_argument("--dataset_cache_device", default="cpu", type=str)
     parser.add_argument("--no_image_mask", action="store_true")
@@ -106,5 +107,6 @@ if __name__ == "__main__":
             trainable_camera=args.mode == "camera",
             load_ply=load_ply, load_camera=args.load_camera,
             load_mask=not args.no_image_mask,
-            extractor_configs=extractor_configs)
+            extractor_configs=extractor_configs,
+            init_mode=args.init_mode)
         viewing(gaussians, dataset, device=args.device, port=args.port)

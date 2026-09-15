@@ -15,14 +15,16 @@ from feature_3dgs.utils import pca_transform_params
 def prepare_rendering(
         name: str, sh_degree: int, source: str, encoded_dim: int, device: str, dataset_cache_device: str = None,
         trainable_camera: bool = False, load_ply: str = None, load_decoder: str = None, load_camera: str = None,
-        load_mask=True, preload_cache: bool = True, extractor_configs={}) -> Tuple[FeatureCameraDataset, SemanticGaussianModel]:
+        load_mask=True, preload_cache: bool = True, extractor_configs={},
+        init_mode: str = "fusionavg") -> Tuple[FeatureCameraDataset, SemanticGaussianModel]:
     dataset, decoder = prepare_dataset_and_decoder(
         name=name, source=source, encoded_dim=encoded_dim, device=device, dataset_cache_device=dataset_cache_device,
         trainable_camera=trainable_camera, load_camera=load_camera,
         load_mask=load_mask, load_depth=False, preload_cache=preload_cache, configs=extractor_configs)
     gaussians = prepare_gaussians(
         decoder=decoder, sh_degree=sh_degree, source=source, dataset=dataset, device=device,
-        trainable_camera=trainable_camera, load_ply=load_ply, load_decoder=load_decoder)
+        trainable_camera=trainable_camera, load_ply=load_ply, load_decoder=load_decoder,
+        init_mode=init_mode)
     return dataset, gaussians
 
 
@@ -93,6 +95,7 @@ if __name__ == "__main__":
     parser.add_argument("--load_decoder", default=None, type=str)
     parser.add_argument("--load_camera", default=None, type=str)
     parser.add_argument("--mode", choices=["base", "camera"], default="base")
+    parser.add_argument("--init_mode", default="fusionavg")
     parser.add_argument("--device", default="cuda", type=str)
     parser.add_argument("--dataset_cache_device", default="cpu", type=str)
     parser.add_argument("--no_image_mask", action="store_true")
@@ -111,5 +114,6 @@ if __name__ == "__main__":
             load_ply=load_ply, load_decoder=args.load_decoder, load_camera=args.load_camera,
             load_mask=not args.no_image_mask,
             preload_cache=not args.no_preload_dataset_cache,
-            extractor_configs=extractor_configs)
+            extractor_configs=extractor_configs,
+            init_mode=args.init_mode)
         rendering(dataset, gaussians, save)

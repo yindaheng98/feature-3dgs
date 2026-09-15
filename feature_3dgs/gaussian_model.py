@@ -205,24 +205,24 @@ class SemanticGaussianModel(GaussianModel):
         }
         return out
 
-    def reset_encoded_semantics(self, dataset: FeatureCameraDataset | None = None, mode: str = "fusion avg"):
+    def reset_encoded_semantics(self, dataset: FeatureCameraDataset | None = None, mode: str = "fusionavg"):
         """Reset per-Gaussian encoded semantics.
 
         With no *dataset*, fills zeros of shape ``(N, encoded_dim)``.
         With a *dataset*, encodes each view through the decoder and
         back-projects onto the Gaussians:
 
-        - ``"pickup max"``: pick the highest-alpha pixel per Gaussian
-        - ``"fusion avg"``: alpha-weighted average over views
-        - ``"fusion max"``: alpha-weighted max over views
+        - ``"pickupmax"``: pick the highest-alpha pixel per Gaussian
+        - ``"fusionavg"``: alpha-weighted average over views
+        - ``"fusionmax"``: alpha-weighted max over views
         """
         if dataset is None:
             encoded_semantics = torch.zeros((self._xyz.shape[0], self._decoder.encoded_dim), dtype=torch.float, device=self._xyz.device)
-        elif mode == "pickup max":
+        elif mode == "pickupmax":
             encoded_semantics, _ = feature_pickup_alpha_max(self, dataset, self._decoder.encode_feature_pixels)
-        elif mode == "fusion avg":
+        elif mode == "fusionavg":
             encoded_semantics, _ = feature_fusion_alpha_avg(self, dataset, self._decoder.encode_feature_map)
-        elif mode == "fusion max":
+        elif mode == "fusionmax":
             encoded_semantics, _ = feature_fusion_alpha_max(self, dataset, self._decoder.encode_feature_map)
         else:
             raise ValueError(f"Unsupported encoded-semantics init mode {mode!r}")
