@@ -8,7 +8,7 @@ from feature_3dgs.decoder import AbstractTrainableDecoder
 from feature_3dgs.registry import register_extractor_decoder
 
 from .models.blocks import BasicEncoder
-from .extractor import MVTAPExtractor, FEATURE_DIM, STRIDE
+from .extractor import MVTAPExtractor, FEATURE_DIM, STRIDE, MODEL_HEIGHT, MODEL_WIDTH
 from .decoder import MVTAPLinearAvgDecoder
 
 MODEL_MVTAP = "mvtap"
@@ -31,21 +31,37 @@ def load_basic_encoder(checkpoint: str = DEFAULT_CHECKPOINT) -> BasicEncoder:
     return model
 
 
-def MVTAPFeatureExtractor(checkpoint: str = DEFAULT_CHECKPOINT) -> MVTAPExtractor:
+def MVTAPFeatureExtractor(
+    checkpoint: str = DEFAULT_CHECKPOINT,
+    input_height: int = MODEL_HEIGHT,
+    input_width: int = MODEL_WIDTH,
+) -> MVTAPExtractor:
     model = load_basic_encoder(checkpoint)
-    return MVTAPExtractor(model=model)
+    return MVTAPExtractor(
+        model=model,
+        input_height=input_height,
+        input_width=input_width,
+    )
 
 
 def build_factory():
     def factory(
         encoded_dim: int,
         checkpoint: str = DEFAULT_CHECKPOINT,
+        input_height: int = MODEL_HEIGHT,
+        input_width: int = MODEL_WIDTH,
         **configs,
     ) -> Tuple[AbstractFeatureExtractor, AbstractTrainableDecoder]:
-        extractor = MVTAPFeatureExtractor(checkpoint)
+        extractor = MVTAPFeatureExtractor(
+            checkpoint,
+            input_height=input_height,
+            input_width=input_width,
+        )
         decoder = MVTAPLinearAvgDecoder(
             in_channels=encoded_dim,
             out_channels=extractor.feature_dim,
+            input_height=input_height,
+            input_width=input_width,
             **configs,
         )
         return extractor, decoder
