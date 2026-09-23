@@ -3,74 +3,76 @@ import torch.nn.functional as F
 from gaussian_splatting import Camera
 from feature_3dgs.decoder import CosineLinearDecoder
 
-from .extractor import padding, STRIDE
+from .extractor import MODEL_HEIGHT, MODEL_WIDTH, STRIDE, input_size, padding
 
 
 class MVTAPLinearAvgDecoder(CosineLinearDecoder):
     """Decoder that aligns Gaussian features with MVTAPExtractor output.
 
     Channel projection is the trainable linear layer.  Spatial resampling
-    follows MV-TAP ``BasicEncoder``, which bilinearly resizes multi-scale CNN
-    maps to ``(H // stride, W // stride)`` with ``align_corners=True`` — a
-    dense 1/4 feature field, not disjoint patch averages.
+    repeats the extractor: resize under ``input_height`` / ``input_width``,
+    reflect-pad so H/W are multiples of ``STRIDE``, then average-pool to the
+    1/4 field ``(H // stride, W // stride)``.
 
-    Source (``_bilinear_intepolate``):
-        https://github.com/cvlab-kaist/MV-TAP/blob/b248aea43dd04c79679563abb44bb6bd914e1224/models/blocks.py#L273-L279
+    ``input_height`` / ``input_width`` match ``MVTAPExtractor``.  Both set
+    (default 384x512) stretches to that size.  One ``None`` keeps aspect
+    ratio.  Both ``None`` keep the native image size.
+
     Output grid ``H4, W4 = H // stride``:
         https://github.com/cvlab-kaist/MV-TAP/blob/b248aea43dd04c79679563abb44bb6bd914e1224/models/mvtap.py#L391
+    Official chart ``model_resolution`` 384x512:
+        https://github.com/cvlab-kaist/MV-TAP/blob/b248aea43dd04c79679563abb44bb6bd914e1224/models/mvtap.py#L43
     """
 
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        input_height: int = MODEL_HEIGHT,
+        input_width: int = MODEL_WIDTH,
+    ) -> None:
+        super().__init__(in_channels=in_channels, out_channels=out_channels)
+        self.input_height = input_height
+        self.input_width = input_width
+
     def decode_feature_map(self, feature_map: torch.Tensor, weight: torch.Tensor = None, bias: torch.Tensor = None) -> torch.Tensor:
-        """Linear projection, then bilinear downsample like ``BasicEncoder``.
+        """Resize and pad like ``MVTAPExtractor``, then fused linear + avg-pool.
 
-        Equivalent to:
+        Equivalent to (but avoids the large (C_feat, H, W) intermediate):
 
-            x = padding(feature_map)                      # (C_enc, H', W')
-            x = self.decode_feature_pixels(x, weight, bias)
-            x = F.interpolate(
-                x.unsqueeze(0),
-                (H' // STRIDE, W' // STRIDE),
-                mode="bilinear",
-                align_corners=True,
-            ).squeeze(0)
+            _, H, W = feature_map.shape
+            th, tw = input_size(H, W, input_height, input_width)
+            x = F.interpolate(feature_map, (th, tw), mode="bilinear", align_corners=False)
+            x = padding(x)                                 # (C_enc, H', W')
+            C, H, W = x.shape
+            x = x.permute(1, 2, 0).reshape(-1, C)          # (H*W, C_enc)
+            x = self.linear(x)                              # (H*W, C_feat)
+            x = x.reshape(H, W, -1).permute(2, 0, 1)       # (C_feat, H, W)
+            x = F.avg_pool2d(x, kernel_size=STRIDE, stride=STRIDE)
 
-        The interpolate is the same operator as MV-TAP
-        ``models/blocks.py`` ``BasicEncoder.forward`` L273-L279:
-
-            def _bilinear_intepolate(x):
-                return F.interpolate(
-                    x,
-                    (H // self.stride, W // self.stride),
-                    mode="bilinear",
-                    align_corners=True,
-                )
-
-        Linear (per-channel mix) and bilinear interpolate (per-channel
-        spatial mix) commute, so an optional extra linear is fused inside
-        ``decode_feature_pixels`` before the resize.
+        The interpolate and ``padding`` match the extractor.  Avg-pool (mean
+        over ``STRIDE²`` elements) and the linear layer are both linear, so
+        they fuse into one Conv2d with kernel ``W[:, :, None, None] / STRIDE²``
+        and stride ``STRIDE``.  An optional extra linear (``weight`` / ``bias``)
+        is fused the same way.
         """
+        _, height, width = feature_map.shape
+        th, tw = input_size(height, width, self.input_height, self.input_width)
+        if (height, width) != (th, tw):
+            feature_map = F.interpolate(feature_map.unsqueeze(0), size=(th, tw), mode="bilinear", align_corners=False).squeeze(0)
         x = padding(feature_map)
-        x = self.decode_feature_pixels(x, weight=weight, bias=bias)
-        _, H, W = x.shape
-        # models/blocks.py L273-L279: bilinear to (H // stride, W // stride)
-        return F.interpolate(
-            x.unsqueeze(0),
-            (H // STRIDE, W // STRIDE),
-            mode="bilinear",
-            align_corners=True,
-        ).squeeze(0)
+        lin_weight, lin_bias = self.linear.weight, self.linear.bias
+        if weight is not None:
+            lin_weight = weight @ lin_weight
+            lin_bias = F.linear(lin_bias, weight, bias)
+        kernel = lin_weight[:, :, None, None].expand(-1, -1, STRIDE, STRIDE) / (STRIDE * STRIDE)
+        return F.conv2d(x.unsqueeze(0), kernel, lin_bias, stride=STRIDE).squeeze(0)
 
     def encode_feature_map(self, feature_map: torch.Tensor, camera: Camera) -> torch.Tensor:
         """Inverse of decode_feature_map: (C_feat, H_s, W_s) -> (C_enc, H, W).
 
-        Applies ``encode_feature_pixels`` then the inverse of
-        ``_bilinear_intepolate`` (``models/blocks.py`` L273-L279): bilinear
-        upsample with ``align_corners=True`` to the original image size.
+        Applies ``encode_feature_pixels`` then bilinear upsampling to restore
+        full spatial resolution.
         """
         x = self.encode_feature_pixels(feature_map)
-        return F.interpolate(
-            x.unsqueeze(0),
-            size=(camera.image_height, camera.image_width),
-            mode="bilinear",
-            align_corners=True,
-        ).squeeze(0)
+        return F.interpolate(x.unsqueeze(0), size=(camera.image_height, camera.image_width), mode="bilinear", align_corners=True).squeeze(0)
