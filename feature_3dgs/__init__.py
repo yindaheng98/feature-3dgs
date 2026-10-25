@@ -6,3 +6,4 @@ from . import dinov3
 from . import vggt
 from . import vggttt
 from . import mvtap
+from . import uniception
